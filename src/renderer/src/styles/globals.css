@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Allow text selection in content areas */
+  .selectable {
+    user-select: text;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
+      bg-accent-blue text-white font-medium text-sm
+      hover:bg-accent-blue-hover active:scale-[0.98]
+      transition-all duration-150 cursor-pointer
+      disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-lg
+      bg-surface-4 text-text-primary font-medium text-sm border border-border
+      hover:bg-surface-5 active:scale-[0.98]
+      transition-all duration-150 cursor-pointer
+      disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 rounded-md
+      text-text-secondary font-medium text-sm
+      hover:bg-surface-3 hover:text-text-primary active:scale-[0.98]
+      transition-all duration-150 cursor-pointer;
+  }
+
+  .badge-critical {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+      bg-accent-red/15 text-accent-red border border-accent-red/30;
+  }
+
+  .badge-warning {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+      bg-accent-yellow/15 text-accent-yellow border border-accent-yellow/30;
+  }
+
+  .badge-info {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+      bg-accent-blue/15 text-accent-blue border border-accent-blue/30;
+  }
+
+  .badge-success {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium
+      bg-accent-green/15 text-accent-green border border-accent-green/30;
+  }
+
+  .card {
+    @apply bg-surface-1 border border-border rounded-xl;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 rounded-lg bg-surface-3 border border-border
+      text-text-primary text-sm placeholder:text-text-muted
+      focus:outline-none focus:border-accent-blue focus:ring-1 focus:ring-accent-blue/30
+      transition-colors duration-150 selectable;
+  }
+}

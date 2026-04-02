@@ -1,0 +1,43 @@
+import { contextBridge, ipcRenderer } from 'electron'
+import { IPC } from '../shared/ipcChannels'
+
+// Expose a typed API to the renderer via window.electronAPI
+contextBridge.exposeInMainWorld('electronAPI', {
+  // ── Window controls ───────────────────────────────────────────────────────
+  window: {
+    minimize: () => ipcRenderer.send(IPC.WINDOW_MINIMIZE),
+    maximize: () => ipcRenderer.send(IPC.WINDOW_MAXIMIZE),
+    close: () => ipcRenderer.send(IPC.WINDOW_CLOSE),
+    isMaximized: () => ipcRenderer.invoke(IPC.WINDOW_IS_MAXIMIZED),
+  },
+
+  // ── File system ───────────────────────────────────────────────────────────
+  file: {
+    open: () => ipcRenderer.invoke(IPC.FILE_OPEN),
+    save: (payload) => ipcRenderer.invoke(IPC.FILE_SAVE, payload),
+  },
+
+  // ── Settings ──────────────────────────────────────────────────────────────
+  settings: {
+    get: (key) => ipcRenderer.invoke(IPC.SETTINGS_GET, key),
+    set: (key, value) => ipcRenderer.invoke(IPC.SETTINGS_SET, key, value),
+    delete: (key) => ipcRenderer.invoke(IPC.SETTINGS_DELETE, key),
+  },
+
+  // ── Secure storage (API keys) ─────────────────────────────────────────────
+  safeStore: {
+    get: (key) => ipcRenderer.invoke(IPC.SAFE_STORE_GET, key),
+    set: (key, value) => ipcRenderer.invoke(IPC.SAFE_STORE_SET, key, value),
+    delete: (key) => ipcRenderer.invoke(IPC.SAFE_STORE_DELETE, key),
+  },
+
+  // ── Auto-updater ──────────────────────────────────────────────────────────
+  updater: {
+    download: () => ipcRenderer.invoke(IPC.UPDATE_DOWNLOAD),
+    install: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),
+    onUpdateAvailable: (cb) => ipcRenderer.on(IPC.UPDATE_AVAILABLE, (_, info) => cb(info)),
+    onUpdateDownloaded: (cb) => ipcRenderer.on(IPC.UPDATE_DOWNLOADED, (_, info) => cb(info)),
+    onProgress: (cb) => ipcRenderer.on(IPC.UPDATE_PROGRESS, (_, progress) => cb(progress)),
+    onError: (cb) => ipcRenderer.on(IPC.UPDATE_ERROR, (_, msg) => cb(msg)),
+  },
+})
