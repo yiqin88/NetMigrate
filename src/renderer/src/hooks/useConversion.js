@@ -80,21 +80,35 @@ export function useConversion() {
     listenForStreamProgress()
 
     try {
-      // Fetch learning examples with a 5-second timeout
+      // Fetch learning examples + training examples with a 5-second timeout
       let examples = []
       try {
-        console.log('[useConversion] Fetching Supabase examples…')
+        console.log('[useConversion] Fetching examples…')
         setState((s) => ({ ...s, progressMessage: INITIAL_MESSAGES[0] }))
-        const exPromise = getRecentMigrations({
-          sourceVendor: sourceVendor.id,
-          targetVendor: targetVendor.id,
-          limit: 10,
-        })
-        examples = await Promise.race([
-          exPromise,
+
+        const timeout = (p) => Promise.race([
+          p,
           new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000)),
         ])
-        console.log('[useConversion] Got', examples.length, 'examples')
+
+        const [migrations, training] = await Promise.all([
+          timeout(getRecentMigrations({
+            sourceVendor: sourceVendor.id,
+            targetVendor: targetVendor.id,
+            limit: 10,
+          })).catch(() => []),
+          timeout(
+            window.electronAPI?.training?.getExamples?.({
+              sourceVendor: sourceVendor.id,
+              targetVendor: targetVendor.id,
+              limit: 5,
+            }) ?? Promise.resolve([])
+          ).catch(() => []),
+        ])
+
+        // Training examples first (curated), then past migrations
+        examples = [...training, ...migrations]
+        console.log('[useConversion] Got', training.length, 'training +', migrations.length, 'migration examples')
       } catch (err) {
         console.warn('[useConversion] Examples failed (non-blocking):', err.message)
         examples = []

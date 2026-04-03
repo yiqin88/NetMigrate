@@ -8,6 +8,8 @@ import { convertConfig, testApiKey } from './api/claude'
 import {
   getRecentMigrations, saveMigration, getMigrationStats,
   testConnection as testSupabaseConnection, resetClient as resetSupabaseClient,
+  listTrainingExamples, saveTrainingExample, deleteTrainingExample,
+  getTrainingExampleCounts, getTrainingExamplesForConversion,
 } from './api/supabase'
 
 let mainWindow
@@ -196,4 +198,26 @@ ipcMain.handle(IPC.SUPABASE_TEST_CONNECTION, async () => {
 
 ipcMain.handle(IPC.SUPABASE_RESET, () => {
   resetSupabaseClient()
+})
+
+// ── IPC: Training examples ────────────────────────────────────────────────────
+
+ipcMain.handle(IPC.TRAINING_LIST, async (_, payload) => {
+  return await listTrainingExamples(payload)
+})
+
+ipcMain.handle(IPC.TRAINING_SAVE, async (_, record) => {
+  return await saveTrainingExample(record)
+})
+
+ipcMain.handle(IPC.TRAINING_DELETE, async (_, id) => {
+  return await deleteTrainingExample(id)
+})
+
+ipcMain.handle(IPC.TRAINING_COUNT, async () => {
+  return await getTrainingExampleCounts()
+})
+
+ipcMain.handle(IPC.TRAINING_GET_EXAMPLES, async (_, payload) => {
+  return await getTrainingExamplesForConversion(payload)
 })

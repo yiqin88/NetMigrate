@@ -6,6 +6,7 @@ import DiffView from '../components/DiffView/DiffView'
 import WarningsPanel from '../components/WarningsPanel/WarningsPanel'
 import SavePanel from '../components/SavePanel/SavePanel'
 import { useConversion } from '../hooks/useConversion'
+import { cleanCiscoConfig } from '../services/configParser'
 
 const STEPS = ['vendor', 'input', 'preview', 'diff', 'complete']
 const STEP_LABELS = {
@@ -65,7 +66,9 @@ export default function MigratePage() {
   }
 
   function handleConfigConfirm(text) {
-    setSourceConfig(text)
+    // Clean terminal noise (prompts, show-run headers, pager output)
+    const cleaned = cleanCiscoConfig(text)
+    setSourceConfig(cleaned)
     goTo('preview')
   }
 

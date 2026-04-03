@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { testConnection, resetSupabaseClient } from '../services/supabase'
 import { testApiKey } from '../services/claude'
+import TrainingConfigs from '../components/TrainingConfigs/TrainingConfigs'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
@@ -165,6 +166,9 @@ export default function SettingsPage() {
               />
             </div>
           </section>
+
+          {/* Training configs — outside the save form since it has its own save flow */}
+          <TrainingConfigs />
 
           {saveError && (
             <div className="badge-critical w-full text-sm p-3 rounded-lg animate-fade-in">

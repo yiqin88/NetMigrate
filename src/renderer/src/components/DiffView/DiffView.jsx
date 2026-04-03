@@ -1,10 +1,5 @@
-import { useState, Suspense, lazy } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued'
-
-// Monaco is large (~2 MB) — lazy load it
-const MonacoEditor = lazy(() =>
-  import('@monaco-editor/react').then((m) => ({ default: m.default }))
-)
 
 const DIFF_STYLES = {
   variables: {
@@ -39,6 +34,14 @@ const DIFF_STYLES = {
 export default function DiffView({ sourceConfig, convertedConfig, onChange, vendorPair }) {
   const [tab, setTab] = useState('diff')
   const [copied, setCopied] = useState(false)
+  const textareaRef = useRef(null)
+
+  // Auto-focus textarea when switching to edit tab
+  useEffect(() => {
+    if (tab === 'edit' && textareaRef.current) {
+      textareaRef.current.focus()
+    }
+  }, [tab])
 
   async function handleCopy() {
     await navigator.clipboard.writeText(convertedConfig)
@@ -109,38 +112,25 @@ export default function DiffView({ sourceConfig, convertedConfig, onChange, vend
           />
         </div>
       ) : (
-        <div className="h-[480px]">
-          <Suspense fallback={<MonacoSkeleton />}>
-            <MonacoEditor
-              height="480px"
-              language="plaintext"
-              theme="vs-dark"
-              value={convertedConfig}
-              onChange={(val) => onChange(val ?? '')}
-              options={{
-                fontSize: 12,
-                fontFamily: "'JetBrains Mono', 'Cascadia Code', monospace",
-                lineNumbers: 'on',
-                wordWrap: 'off',
-                minimap: { enabled: false },
-                scrollBeyondLastLine: false,
-                renderLineHighlight: 'line',
-                selectOnLineNumbers: true,
-                tabSize: 2,
-                padding: { top: 12, bottom: 12 },
-              }}
-            />
-          </Suspense>
+        <div className="relative">
+          <div className="absolute top-2 right-3 flex items-center gap-2 z-10">
+            <span className="text-xs text-text-muted">
+              {convertedConfig.split('\n').length} lines
+            </span>
+          </div>
+          <textarea
+            ref={textareaRef}
+            className="w-full h-[480px] bg-surface font-mono text-xs text-text-primary
+              p-4 resize-none focus:outline-none selectable leading-relaxed
+              border-none"
+            value={convertedConfig}
+            onChange={(e) => onChange(e.target.value)}
+            spellCheck={false}
+            autoComplete="off"
+            autoCorrect="off"
+          />
         </div>
       )}
-    </div>
-  )
-}
-
-function MonacoSkeleton() {
-  return (
-    <div className="h-[480px] bg-[#1e1e1e] flex items-center justify-center">
-      <div className="text-text-muted text-sm animate-pulse-subtle">Loading editor…</div>
     </div>
   )
 }

@@ -1,5 +1,53 @@
 // Cisco IOS config parser — extracts structured elements for preview
 
+// Patterns to strip from raw terminal/show-run output
+const TERMINAL_NOISE = [
+  /^[\w\-]+[#>]\s*show\s+run.*/i,          // e.g. "CDGCOREDMZ#show run"
+  /^[\w\-]+[#>]\s*$/,                        // bare prompts like "Switch#"
+  /^Building configuration\.\.\./i,           // "Building configuration..."
+  /^Current configuration\s*:\s*\d+\s*bytes/i, // "Current configuration : 12345 bytes"
+  /^!\s*Last configuration change.*/i,        // "! Last configuration change at..."
+  /^!\s*NVRAM config last updated.*/i,        // "! NVRAM config last updated..."
+  /^Using \d+ out of \d+.*/i,                // "Using 12345 out of 65536 bytes"
+  /^Uncompressed configuration.*/i,           // "Uncompressed configuration..."
+  /^!\s*No configuration change since.*/i,
+  /^Press RETURN to continue/i,
+  /^--\s*More\s*--/,                          // pager output
+  /^\s*$/,                                    // blank lines (collapsed later)
+]
+
+/**
+ * Clean raw Cisco config by stripping terminal prompts, show-command headers,
+ * pager output, and excessive blank lines.
+ * @param {string} rawConfig
+ * @returns {string} cleaned config
+ */
+export function cleanCiscoConfig(rawConfig) {
+  const lines = rawConfig.split('\n')
+  const cleaned = []
+  let prevBlank = false
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd()
+
+    // Skip lines matching terminal noise patterns
+    if (TERMINAL_NOISE.some((re) => re.test(line))) {
+      // Allow a single blank line between blocks, collapse multiples
+      if (/^\s*$/.test(line)) {
+        if (!prevBlank) { cleaned.push(''); prevBlank = true }
+      }
+      continue
+    }
+
+    prevBlank = line === ''
+    cleaned.push(line)
+  }
+
+  // Trim leading/trailing blank lines
+  const result = cleaned.join('\n').trim()
+  return result
+}
+
 /**
  * Parse a Cisco IOS / IOS-XE configuration string into structured elements.
  * @param {string} configText

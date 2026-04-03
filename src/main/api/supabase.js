@@ -101,3 +101,82 @@ export async function testConnection() {
     return { ok: false, error: err.message }
   }
 }
+
+// ── Training examples ─────────────────────────────────────────────────────────
+
+export async function listTrainingExamples({ sourceVendor, targetVendor } = {}) {
+  const client = getClient()
+  if (!client) return []
+
+  let query = client
+    .from('training_examples')
+    .select('id, source_vendor, target_vendor, description, created_at')
+    .order('created_at', { ascending: false })
+
+  if (sourceVendor) query = query.eq('source_vendor', sourceVendor)
+  if (targetVendor) query = query.eq('target_vendor', targetVendor)
+
+  const { data, error } = await query
+  if (error) { console.error('[supabase] listTrainingExamples:', error.message); return [] }
+  return data ?? []
+}
+
+export async function saveTrainingExample(record) {
+  const client = getClient()
+  if (!client) throw new Error('Supabase not configured.')
+
+  const { data, error } = await client
+    .from('training_examples')
+    .insert(record)
+    .select()
+    .single()
+
+  if (error) throw new Error(`Save failed: ${error.message}`)
+  return data
+}
+
+export async function deleteTrainingExample(id) {
+  const client = getClient()
+  if (!client) throw new Error('Supabase not configured.')
+
+  const { error } = await client
+    .from('training_examples')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw new Error(`Delete failed: ${error.message}`)
+}
+
+export async function getTrainingExampleCounts() {
+  const client = getClient()
+  if (!client) return []
+
+  const { data, error } = await client
+    .from('training_examples')
+    .select('source_vendor, target_vendor')
+
+  if (error) { console.error('[supabase] getTrainingCounts:', error.message); return [] }
+
+  const counts = {}
+  for (const row of (data ?? [])) {
+    const key = `${row.source_vendor}→${row.target_vendor}`
+    counts[key] = (counts[key] ?? 0) + 1
+  }
+  return Object.entries(counts).map(([pair, count]) => ({ pair, count }))
+}
+
+export async function getTrainingExamplesForConversion({ sourceVendor, targetVendor, limit = 5 }) {
+  const client = getClient()
+  if (!client) return []
+
+  const { data, error } = await client
+    .from('training_examples')
+    .select('source_config, converted_config, description')
+    .eq('source_vendor', sourceVendor)
+    .eq('target_vendor', targetVendor)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) { console.error('[supabase] getTrainingExamples:', error.message); return [] }
+  return data ?? []
+}
