@@ -1,4 +1,5 @@
-import { autoUpdater } from 'electron-updater'
+import updaterPkg from 'electron-updater'
+const { autoUpdater } = updaterPkg
 import { IPC } from '../shared/ipcChannels'
 
 export function setupUpdater(mainWindow) {

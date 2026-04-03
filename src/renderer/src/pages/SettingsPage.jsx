@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
+import { testConnection, resetSupabaseClient } from '../services/supabase'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
   const [supabaseUrl, setSupabaseUrl] = useState('')
   const [supabaseKey, setSupabaseKey] = useState('')
   const [saved, setSaved] = useState(false)
+  const [connStatus, setConnStatus] = useState(null) // null | 'testing' | 'ok' | 'error'
+  const [connError, setConnError] = useState('')
 
   useEffect(() => {
     async function load() {
@@ -23,8 +26,17 @@ export default function SettingsPage() {
     if (apiKey) await window.electronAPI?.safeStore.set('anthropic_api_key', apiKey)
     if (supabaseUrl) await window.electronAPI?.settings.set('supabase_url', supabaseUrl)
     if (supabaseKey) await window.electronAPI?.settings.set('supabase_anon_key', supabaseKey)
+    resetSupabaseClient()
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
+  }
+
+  async function handleTestConnection() {
+    setConnStatus('testing')
+    setConnError('')
+    const result = await testConnection()
+    setConnStatus(result.ok ? 'ok' : 'error')
+    if (!result.ok) setConnError(result.error)
   }
 
   return (
@@ -41,7 +53,7 @@ export default function SettingsPage() {
           {/* Anthropic */}
           <section className="card p-5 space-y-4">
             <div className="flex items-center gap-2">
-              <AnthropicIcon />
+              <VendorBadge color="#cc785c" label="A" />
               <h2 className="text-sm font-semibold text-text-primary">Anthropic API</h2>
             </div>
             <div>
@@ -61,10 +73,37 @@ export default function SettingsPage() {
 
           {/* Supabase */}
           <section className="card p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <SupabaseIcon />
-              <h2 className="text-sm font-semibold text-text-primary">Supabase</h2>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <VendorBadge color="#3ecf8e" label="S" />
+                <h2 className="text-sm font-semibold text-text-primary">Supabase</h2>
+              </div>
+              <button
+                type="button"
+                className="btn-ghost text-xs"
+                onClick={handleTestConnection}
+                disabled={connStatus === 'testing'}
+              >
+                {connStatus === 'testing' ? (
+                  <span className="animate-pulse-subtle">Testing…</span>
+                ) : (
+                  'Test Connection'
+                )}
+              </button>
             </div>
+
+            {/* Connection status */}
+            {connStatus === 'ok' && (
+              <div className="badge-success w-fit animate-fade-in">
+                ✓ Connected to Supabase
+              </div>
+            )}
+            {connStatus === 'error' && (
+              <div className="badge-critical w-fit animate-fade-in">
+                ✗ {connError || 'Connection failed'}
+              </div>
+            )}
+
             <div>
               <label className="block text-xs text-text-secondary mb-1.5">Project URL</label>
               <input
@@ -93,7 +132,7 @@ export default function SettingsPage() {
             </button>
             {saved && (
               <span className="text-sm text-accent-green animate-fade-in">
-                ✓ Saved successfully
+                ✓ Saved
               </span>
             )}
           </div>
@@ -103,18 +142,13 @@ export default function SettingsPage() {
   )
 }
 
-function AnthropicIcon() {
+function VendorBadge({ color, label }) {
   return (
-    <div className="w-6 h-6 rounded bg-[#cc785c]/20 flex items-center justify-center">
-      <span className="text-xs font-bold text-[#cc785c]">A</span>
-    </div>
-  )
-}
-
-function SupabaseIcon() {
-  return (
-    <div className="w-6 h-6 rounded bg-accent-green/20 flex items-center justify-center">
-      <span className="text-xs font-bold text-accent-green">S</span>
+    <div
+      className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold flex-shrink-0"
+      style={{ backgroundColor: color + '25', border: `1px solid ${color}40`, color }}
+    >
+      {label}
     </div>
   )
 }
