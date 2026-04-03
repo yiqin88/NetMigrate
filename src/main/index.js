@@ -4,12 +4,12 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupUpdater } from './updater'
 import { setupSafeStorage, getSetting, setSetting, deleteSetting } from './settings'
 import { IPC } from '../shared/ipcChannels'
-import { convertConfig, testApiKey } from './api/claude'
+import { convertConfig, testApiKey, extractCommandMappings } from './api/claude'
 import {
   getRecentMigrations, saveMigration, getMigrationStats,
   testConnection as testSupabaseConnection, resetClient as resetSupabaseClient,
-  listTrainingExamples, saveTrainingExample, deleteTrainingExample,
-  getTrainingExampleCounts, getTrainingExamplesForConversion,
+  listTrainingExamples, saveTrainingExample, updateTrainingExample,
+  deleteTrainingExample, getTrainingExampleCounts, getTrainingExamplesForConversion,
 } from './api/supabase'
 
 let mainWindow
@@ -69,6 +69,9 @@ app.whenReady().then(() => {
 
   setupSafeStorage()
   createWindow()
+
+  // Ensure DB schema is up to date
+  import('./api/supabase.js').then((m) => m.ensureSchema()).catch(() => {})
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -210,6 +213,10 @@ ipcMain.handle(IPC.TRAINING_SAVE, async (_, record) => {
   return await saveTrainingExample(record)
 })
 
+ipcMain.handle(IPC.TRAINING_UPDATE, async (_, { id, updates }) => {
+  return await updateTrainingExample(id, updates)
+})
+
 ipcMain.handle(IPC.TRAINING_DELETE, async (_, id) => {
   return await deleteTrainingExample(id)
 })
@@ -220,4 +227,8 @@ ipcMain.handle(IPC.TRAINING_COUNT, async () => {
 
 ipcMain.handle(IPC.TRAINING_GET_EXAMPLES, async (_, payload) => {
   return await getTrainingExamplesForConversion(payload)
+})
+
+ipcMain.handle(IPC.TRAINING_EXTRACT_MAPPINGS, async (_, payload) => {
+  return await extractCommandMappings(payload)
 })

@@ -203,6 +203,47 @@ export async function testApiKey(apiKey) {
 }
 
 /**
+ * Extract command translation rules from a source/converted config pair.
+ * Uses Haiku for speed + cost efficiency.
+ */
+export async function extractCommandMappings({ sourceConfig, convertedConfig, sourceVendor, targetVendor }) {
+  const apiKey = getApiKey()
+  if (!apiKey) return []
+
+  console.log('[claude] extractCommandMappings')
+
+  try {
+    const { status, body } = await httpsPost(apiKey, {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 2048,
+      system: `You extract command translation rules between network vendors. Given a source config and its converted equivalent, output a JSON array of translation rules.
+Each rule: { "source": "<source command pattern>", "target": "<target equivalent>", "category": "<vlan|interface|routing|stp|acl|other>" }
+Use X, Y, Z as variable placeholders. Only output the JSON array, no explanation.`,
+      messages: [{
+        role: 'user',
+        content: `Source (${sourceVendor}):\n\`\`\`\n${sourceConfig.slice(0, 3000)}\n\`\`\`\n\nConverted (${targetVendor}):\n\`\`\`\n${convertedConfig.slice(0, 3000)}\n\`\`\``,
+      }],
+    }, 30_000)
+
+    if (status < 200 || status >= 300) {
+      console.error('[claude] extractCommandMappings failed:', status)
+      return []
+    }
+
+    const text = body.content?.[0]?.text ?? ''
+    const jsonMatch = text.match(/\[[\s\S]*\]/)
+    if (!jsonMatch) return []
+
+    const mappings = JSON.parse(jsonMatch[0])
+    console.log('[claude] Extracted', mappings.length, 'command mappings')
+    return Array.isArray(mappings) ? mappings : []
+  } catch (err) {
+    console.error('[claude] extractCommandMappings error:', err.message)
+    return []
+  }
+}
+
+/**
  * Convert a config using Claude with streaming.
  * @param {Function} onProgress - called with { chars, text } as response streams in
  */

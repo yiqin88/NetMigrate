@@ -55,9 +55,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   training: {
     list: (payload) => ipcRenderer.invoke(IPC.TRAINING_LIST, payload),
     save: (record) => ipcRenderer.invoke(IPC.TRAINING_SAVE, record),
+    update: (id, updates) => ipcRenderer.invoke(IPC.TRAINING_UPDATE, { id, updates }),
     delete: (id) => ipcRenderer.invoke(IPC.TRAINING_DELETE, id),
     counts: () => ipcRenderer.invoke(IPC.TRAINING_COUNT),
     getExamples: (payload) => ipcRenderer.invoke(IPC.TRAINING_GET_EXAMPLES, payload),
+    extractMappings: (payload) => ipcRenderer.invoke(IPC.TRAINING_EXTRACT_MAPPINGS, payload),
   },
 
   // ── Auto-updater ──────────────────────────────────────────────────────────

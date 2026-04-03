@@ -46,7 +46,9 @@ export const IPC = {
   // Training examples (main process → Supabase)
   TRAINING_LIST: 'training:list',
   TRAINING_SAVE: 'training:save',
+  TRAINING_UPDATE: 'training:update',
   TRAINING_DELETE: 'training:delete',
   TRAINING_COUNT: 'training:count',
   TRAINING_GET_EXAMPLES: 'training:get-examples',
+  TRAINING_EXTRACT_MAPPINGS: 'training:extract-mappings',
 }

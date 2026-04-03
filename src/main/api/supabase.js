@@ -36,6 +36,24 @@ export function resetClient() {
   _client = null
 }
 
+// Run on startup — ensure command_mappings column exists
+export async function ensureSchema() {
+  const client = getClient()
+  if (!client) return
+  try {
+    const { error } = await client
+      .from('training_examples')
+      .select('command_mappings')
+      .limit(1)
+    if (error && error.message.includes('command_mappings')) {
+      console.warn('[supabase] command_mappings column missing — add via Supabase dashboard:')
+      console.warn('  ALTER TABLE public.training_examples ADD COLUMN command_mappings jsonb;')
+    } else {
+      console.log('[supabase] Schema OK — command_mappings column exists')
+    }
+  } catch { /* ignore */ }
+}
+
 export async function getRecentMigrations({ sourceVendor, targetVendor, limit = 10 }) {
   const client = getClient()
   if (!client) return []
@@ -110,7 +128,7 @@ export async function listTrainingExamples({ sourceVendor, targetVendor } = {}) 
 
   let query = client
     .from('training_examples')
-    .select('id, source_vendor, target_vendor, description, created_at')
+    .select('id, source_vendor, target_vendor, description, command_mappings, created_at')
     .order('created_at', { ascending: false })
 
   if (sourceVendor) query = query.eq('source_vendor', sourceVendor)
@@ -145,6 +163,21 @@ export async function deleteTrainingExample(id) {
     .eq('id', id)
 
   if (error) throw new Error(`Delete failed: ${error.message}`)
+}
+
+export async function updateTrainingExample(id, updates) {
+  const client = getClient()
+  if (!client) throw new Error('Supabase not configured.')
+
+  const { data, error } = await client
+    .from('training_examples')
+    .update(updates)
+    .eq('id', id)
+    .select()
+    .single()
+
+  if (error) throw new Error(`Update failed: ${error.message}`)
+  return data
 }
 
 export async function getTrainingExampleCounts() {

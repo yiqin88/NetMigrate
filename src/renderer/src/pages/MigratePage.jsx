@@ -26,9 +26,20 @@ export default function MigratePage() {
   const [conversionResult, setConversionResult] = useState(null)
   const [corrections, setCorrections] = useState(0)
   const [convertTrigger, setConvertTrigger] = useState(0) // increment to trigger conversion
+  const [trainingCount, setTrainingCount] = useState(0)
 
   // Ref to original converted text — used to detect manual edits
   const originalConvertedRef = useRef('')
+
+  // Fetch training example count for the selected vendor pair
+  useEffect(() => {
+    if (!vendorPair.source || !vendorPair.target) { setTrainingCount(0); return }
+    window.electronAPI?.training?.getExamples?.({
+      sourceVendor: vendorPair.source.id,
+      targetVendor: vendorPair.target.id,
+      limit: 100,
+    }).then((ex) => setTrainingCount(ex?.length ?? 0)).catch(() => setTrainingCount(0))
+  }, [vendorPair])
 
   const {
     status: convStatus, error: convError, progressMessage, elapsed, streamChars,
@@ -99,11 +110,18 @@ export default function MigratePage() {
     <div className="h-full flex flex-col p-6 gap-5 animate-fade-in">
       {/* Page header */}
       <div className="flex items-center justify-between flex-shrink-0">
-        <div>
-          <h1 className="text-xl font-semibold text-text-primary">Config Migration</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Convert network device configurations between vendors
-          </p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-text-primary">Config Migration</h1>
+            <p className="text-sm text-text-secondary mt-0.5">
+              Convert network device configurations between vendors
+            </p>
+          </div>
+          {trainingCount > 0 && step !== 'vendor' && (
+            <span className="badge-info text-xs">
+              {trainingCount} training example{trainingCount !== 1 ? 's' : ''} available
+            </span>
+          )}
         </div>
         {step !== 'vendor' && (
           <button className="btn-ghost text-xs" onClick={handleReset}>
