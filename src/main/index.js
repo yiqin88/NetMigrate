@@ -34,6 +34,7 @@ function createWindow() {
   // Show window when ready to avoid white flash
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    if (is.dev) mainWindow.webContents.openDevTools()
   })
 
   // Open external links in browser, not in the app
@@ -53,6 +54,10 @@ function createWindow() {
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
 app.whenReady().then(() => {
+  console.log('[startup] Electron:', process.versions.electron)
+  console.log('[startup] Node.js:', process.versions.node)
+  console.log('[startup] Chrome:', process.versions.chrome)
+  console.log('[startup] Platform:', process.platform, process.arch)
   electronApp.setAppUserModelId('com.netmigrate.app')
 
   // Default open/close DevTools behaviour in development
