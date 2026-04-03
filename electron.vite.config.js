@@ -22,6 +22,9 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/main/index.js')
+        },
+        output: {
+          entryFileNames: '[name].js',
         }
       }
     }
@@ -32,6 +35,10 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'src/preload/index.js')
+        },
+        output: {
+          // Force .js extension — Electron's preload requires .js, not .mjs
+          entryFileNames: '[name].js',
         }
       }
     }

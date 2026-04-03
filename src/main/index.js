@@ -24,7 +24,7 @@ function createWindow() {
     titleBarStyle: 'hidden',
     trafficLightPosition: { x: 16, y: 14 }, // macOS traffic lights
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: join(__dirname, '../preload/index.mjs'),
       sandbox: false,
       contextIsolation: true,
       nodeIntegration: false,
