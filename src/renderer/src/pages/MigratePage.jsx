@@ -1,61 +1,156 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import VendorSelector from '../components/VendorSelector/VendorSelector'
+import ConfigInput from '../components/ConfigInput/ConfigInput'
+import ConfigPreview from '../components/ConfigPreview/ConfigPreview'
+import DiffView from '../components/DiffView/DiffView'
+import WarningsPanel from '../components/WarningsPanel/WarningsPanel'
+import SavePanel from '../components/SavePanel/SavePanel'
+import { useConversion } from '../hooks/useConversion'
 
 const STEPS = ['vendor', 'input', 'preview', 'diff', 'complete']
+const STEP_LABELS = {
+  vendor: 'Vendor',
+  input: 'Config',
+  preview: 'Preview',
+  diff: 'Convert',
+  complete: 'Save',
+}
 
 export default function MigratePage() {
+  // ── Wizard state ────────────────────────────────────────────────────────────
   const [step, setStep] = useState('vendor')
   const [vendorPair, setVendorPair] = useState({ source: null, target: null })
+  const [sourceConfig, setSourceConfig] = useState('')
+  const [convertedConfig, setConvertedConfig] = useState('')
+  const [conversionResult, setConversionResult] = useState(null)
+  const [corrections, setCorrections] = useState(0)
+
+  // Ref to original converted text — used to detect manual edits
+  const originalConvertedRef = useRef('')
+
+  const { status: convStatus, error: convError, convert, reset: resetConv } = useConversion()
+
+  // ── Auto-trigger conversion when entering diff step ────────────────────────
+  useEffect(() => {
+    if (step !== 'diff' || !sourceConfig || !vendorPair.source) return
+    if (convStatus !== 'idle') return // already ran or running
+
+    convert({ sourceConfig, sourceVendor: vendorPair.source, targetVendor: vendorPair.target })
+      .then((result) => {
+        setConvertedConfig(result.config)
+        setConversionResult(result)
+        originalConvertedRef.current = result.config
+      })
+      .catch(() => {}) // error already in convStatus
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Track corrections when user edits converted config ────────────────────
+  function handleConvertedChange(newValue) {
+    setConvertedConfig(newValue)
+    const changed = newValue !== originalConvertedRef.current
+    setCorrections(changed ? 1 : 0)
+  }
+
+  // ── Navigation helpers ─────────────────────────────────────────────────────
+  function goTo(s) { setStep(s) }
 
   function handleVendorConfirm(pair) {
     setVendorPair(pair)
-    setStep('input')
+    goTo('input')
+  }
+
+  function handleConfigConfirm(text) {
+    setSourceConfig(text)
+    goTo('preview')
+  }
+
+  function handlePreviewConfirm() {
+    resetConv()
+    setConvertedConfig('')
+    setConversionResult(null)
+    setCorrections(0)
+    originalConvertedRef.current = ''
+    goTo('diff')
+  }
+
+  function handleReset() {
+    setStep('vendor')
+    setVendorPair({ source: null, target: null })
+    setSourceConfig('')
+    setConvertedConfig('')
+    setConversionResult(null)
+    setCorrections(0)
+    originalConvertedRef.current = ''
+    resetConv()
   }
 
   return (
-    <div className="h-full flex flex-col p-6 gap-6 animate-fade-in">
+    <div className="h-full flex flex-col p-6 gap-5 animate-fade-in">
       {/* Page header */}
-      <div>
-        <h1 className="text-xl font-semibold text-text-primary">Config Migration</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          Convert network device configurations between vendors
-        </p>
+      <div className="flex items-center justify-between flex-shrink-0">
+        <div>
+          <h1 className="text-xl font-semibold text-text-primary">Config Migration</h1>
+          <p className="text-sm text-text-secondary mt-0.5">
+            Convert network device configurations between vendors
+          </p>
+        </div>
+        {step !== 'vendor' && (
+          <button className="btn-ghost text-xs" onClick={handleReset}>
+            ✕ Start over
+          </button>
+        )}
       </div>
 
       {/* Step indicator */}
-      <StepIndicator current={step} steps={STEPS} />
+      <StepIndicator current={step} steps={STEPS} labels={STEP_LABELS} />
 
-      {/* Step content */}
-      <div className="flex-1 overflow-auto">
+      {/* Step content — scrollable */}
+      <div className="flex-1 overflow-auto pb-2">
         {step === 'vendor' && (
           <VendorSelector onConfirm={handleVendorConfirm} />
         )}
+
         {step === 'input' && (
-          <Placeholder
-            title="Step 2: Paste or Upload Config"
-            description="ConfigInput component will go here"
-            onBack={() => setStep('vendor')}
+          <ConfigInput
+            vendorPair={vendorPair}
+            onConfirm={handleConfigConfirm}
+            onBack={() => goTo('vendor')}
           />
         )}
+
         {step === 'preview' && (
-          <Placeholder
-            title="Step 3: Config Preview"
-            description="ConfigPreview component will go here"
-            onBack={() => setStep('input')}
+          <ConfigPreview
+            sourceConfig={sourceConfig}
+            vendorPair={vendorPair}
+            onConfirm={handlePreviewConfirm}
+            onBack={() => goTo('input')}
           />
         )}
+
         {step === 'diff' && (
-          <Placeholder
-            title="Step 4: Diff View"
-            description="DiffView + WarningsPanel will go here"
-            onBack={() => setStep('preview')}
+          <ConvertStep
+            sourceConfig={sourceConfig}
+            convertedConfig={convertedConfig}
+            conversionResult={conversionResult}
+            convStatus={convStatus}
+            convError={convError}
+            vendorPair={vendorPair}
+            corrections={corrections}
+            onConvertedChange={handleConvertedChange}
+            onRetry={handlePreviewConfirm}
+            onBack={() => goTo('preview')}
+            onContinue={() => goTo('complete')}
           />
         )}
+
         {step === 'complete' && (
-          <Placeholder
-            title="Step 5: Complete"
-            description="Rating + save + export will go here"
-            onBack={() => setStep('diff')}
+          <SavePanel
+            vendorPair={vendorPair}
+            sourceConfig={sourceConfig}
+            convertedConfig={convertedConfig}
+            conversionResult={conversionResult}
+            corrections={corrections}
+            onReset={handleReset}
           />
         )}
       </div>
@@ -63,23 +158,119 @@ export default function MigratePage() {
   )
 }
 
-function StepIndicator({ current, steps }) {
-  const labels = {
-    vendor: 'Vendor',
-    input: 'Config',
-    preview: 'Preview',
-    diff: 'Convert',
-    complete: 'Save',
+// ── Convert step (loading / error / success) ───────────────────────────────
+
+function ConvertStep({
+  sourceConfig, convertedConfig, conversionResult,
+  convStatus, convError, vendorPair, corrections,
+  onConvertedChange, onRetry, onBack, onContinue,
+}) {
+  if (convStatus === 'idle' || convStatus === 'loading') {
+    return (
+      <div className="flex flex-col items-center justify-center h-80 gap-5 animate-fade-in">
+        <SpinnerIcon />
+        <div className="text-center">
+          <p className="text-sm font-medium text-text-primary">Converting with Claude…</p>
+          <p className="text-xs text-text-muted mt-1">
+            Analysing {vendorPair?.source?.shortName} config and generating {vendorPair?.target?.shortName} syntax
+          </p>
+        </div>
+      </div>
+    )
   }
+
+  if (convStatus === 'error') {
+    return (
+      <div className="max-w-xl mx-auto mt-8 card p-6 space-y-4 text-center animate-fade-in">
+        <div className="text-3xl">⚠️</div>
+        <div>
+          <p className="text-sm font-semibold text-accent-red">Conversion Failed</p>
+          <p className="text-xs text-text-secondary mt-1 selectable">{convError}</p>
+        </div>
+        <div className="flex justify-center gap-3">
+          <button className="btn-secondary" onClick={onBack}>← Back</button>
+          <button className="btn-primary" onClick={onRetry}>Retry</button>
+        </div>
+      </div>
+    )
+  }
+
+  // success
+  return (
+    <div className="space-y-4 animate-fade-in">
+      {/* Conversion summary chips */}
+      {conversionResult?.summary && (
+        <SummaryBar summary={conversionResult.summary} vendorPair={vendorPair} />
+      )}
+
+      {/* Diff / edit view */}
+      <DiffView
+        sourceConfig={sourceConfig}
+        convertedConfig={convertedConfig}
+        onChange={onConvertedChange}
+        vendorPair={vendorPair}
+      />
+
+      {/* Warnings */}
+      <WarningsPanel warnings={conversionResult?.warnings ?? []} />
+
+      {/* Footer actions */}
+      <div className="flex items-center justify-between pt-1">
+        <button className="btn-secondary" onClick={onBack}>
+          ← Back
+        </button>
+        <div className="flex items-center gap-3">
+          {corrections > 0 && (
+            <span className="text-xs text-accent-yellow">
+              {corrections} correction{corrections !== 1 ? 's' : ''} made
+            </span>
+          )}
+          <button className="btn-primary px-6" onClick={onContinue}>
+            Save Migration →
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SummaryBar({ summary, vendorPair }) {
+  const items = [
+    summary.vlans > 0 && `${summary.vlans} VLANs`,
+    summary.interfaces > 0 && `${summary.interfaces} interfaces`,
+    summary.portChannels > 0 && `${summary.portChannels} port-channels`,
+    ...(summary.routingProtocols ?? []).map((p) => p),
+  ].filter(Boolean)
+
+  if (items.length === 0) return null
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-xs text-text-muted">Converted:</span>
+      {items.map((item) => (
+        <span key={item} className="text-xs px-2 py-0.5 rounded bg-accent-green/15 text-accent-green border border-accent-green/25">
+          {item}
+        </span>
+      ))}
+      <span className="text-xs text-text-muted ml-1">
+        → {vendorPair?.target?.shortName} syntax
+      </span>
+    </div>
+  )
+}
+
+// ── Step indicator ─────────────────────────────────────────────────────────
+
+function StepIndicator({ current, steps, labels }) {
   const currentIdx = steps.indexOf(current)
 
   return (
-    <div className="flex items-center gap-0">
+    <div className="flex items-center gap-0 flex-shrink-0">
       {steps.map((step, i) => (
         <div key={step} className="flex items-center">
           <div className="flex items-center gap-2">
             <div
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold transition-colors
                 ${i < currentIdx
                   ? 'bg-accent-green text-white'
                   : i === currentIdx
@@ -89,17 +280,14 @@ function StepIndicator({ current, steps }) {
             >
               {i < currentIdx ? '✓' : i + 1}
             </div>
-            <span
-              className={`text-sm font-medium transition-colors
-                ${i === currentIdx ? 'text-text-primary' : 'text-text-muted'}`}
-            >
+            <span className={`text-sm font-medium transition-colors hidden sm:inline
+              ${i === currentIdx ? 'text-text-primary' : 'text-text-muted'}`}>
               {labels[step]}
             </span>
           </div>
           {i < steps.length - 1 && (
-            <div
-              className={`h-px w-8 mx-2 transition-colors
-                ${i < currentIdx ? 'bg-accent-green' : 'bg-border'}`}
+            <div className={`h-px w-6 mx-2 transition-colors
+              ${i < currentIdx ? 'bg-accent-green' : 'bg-border'}`}
             />
           )}
         </div>
@@ -108,15 +296,13 @@ function StepIndicator({ current, steps }) {
   )
 }
 
-function Placeholder({ title, description, onBack }) {
+function SpinnerIcon() {
   return (
-    <div className="card p-8 text-center max-w-xl mx-auto mt-8">
-      <div className="text-4xl mb-4">🚧</div>
-      <h2 className="text-lg font-semibold text-text-primary mb-2">{title}</h2>
-      <p className="text-sm text-text-secondary mb-6">{description}</p>
-      <button onClick={onBack} className="btn-secondary">
-        ← Back
-      </button>
-    </div>
+    <svg width="36" height="36" viewBox="0 0 24 24" fill="none"
+      stroke="#388bfd" strokeWidth="2.5" strokeLinecap="round"
+      className="animate-spin"
+    >
+      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+    </svg>
   )
 }
