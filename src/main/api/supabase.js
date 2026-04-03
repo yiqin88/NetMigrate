@@ -12,9 +12,9 @@ function resolveCredentials() {
   const envKey = process.env.VITE_SUPABASE_ANON_KEY
   if (envUrl && envKey) return { url: envUrl, key: envKey }
 
-  // 2. Fall back to values saved by user in Settings (electron-store)
-  const url = getSetting('supabase_url')
-  const key = getSetting('supabase_anon_key')
+  // 2. Fall back to values saved by user in Settings (electron-store via safeStore)
+  const url = getSetting('__safe_supabase_url')
+  const key = getSetting('__safe_supabase_anon_key')
   return { url, key }
 }
 

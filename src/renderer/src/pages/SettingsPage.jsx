@@ -18,16 +18,12 @@ export default function SettingsPage() {
       try {
         const key = await window.electronAPI?.safeStore.get('anthropic_api_key')
         if (key) setApiKey(key)
-      } catch (err) {
-        console.error('[settings] failed to load API key:', err)
-      }
-      try {
-        const url = await window.electronAPI?.settings.get('supabase_url')
+        const url = await window.electronAPI?.safeStore.get('supabase_url')
         if (url) setSupabaseUrl(url)
-        const sk = await window.electronAPI?.settings.get('supabase_anon_key')
+        const sk = await window.electronAPI?.safeStore.get('supabase_anon_key')
         if (sk) setSupabaseKey(sk)
       } catch (err) {
-        console.error('[settings] failed to load Supabase settings:', err)
+        console.error('[settings] failed to load settings:', err)
       }
     }
     load()
@@ -40,8 +36,8 @@ export default function SettingsPage() {
     setApiKeyError('')
     try {
       if (apiKey) await window.electronAPI?.safeStore.set('anthropic_api_key', apiKey)
-      if (supabaseUrl) await window.electronAPI?.settings.set('supabase_url', supabaseUrl)
-      if (supabaseKey) await window.electronAPI?.settings.set('supabase_anon_key', supabaseKey)
+      await window.electronAPI?.safeStore.set('supabase_url', supabaseUrl)
+      await window.electronAPI?.safeStore.set('supabase_anon_key', supabaseKey)
       resetSupabaseClient()
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
