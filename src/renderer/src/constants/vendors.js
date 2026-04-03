@@ -206,3 +206,74 @@ export function getTargets(sourceProductId) {
 
 // Backward compat — used by TrainingConfigs select dropdowns
 export const VENDORS = PRODUCTS
+
+// ── Merge custom vendors/products from Supabase ─────────────────────────────
+
+const BUILTIN_VENDOR_IDS = new Set(VENDOR_GROUPS.map((g) => g.id))
+const BUILTIN_PRODUCT_IDS = new Set(Object.keys(PRODUCTS))
+
+/**
+ * Merge custom vendors and products from Supabase into the built-in data.
+ * Returns { allProducts, allGroups, sourceGroups, targetGroups }
+ */
+export function mergeCustomData(customVendors = [], customProducts = []) {
+  // Merge products
+  const allProducts = { ...PRODUCTS }
+  for (const cp of customProducts) {
+    allProducts[cp.product_id] = {
+      id: cp.product_id,
+      name: cp.name,
+      fullName: cp.full_name,
+      vendor: cp.vendor_name ?? cp.vendor_id,
+      vendorId: cp.vendor_id,
+      color: cp.color ?? '#888888',
+      description: cp.description ?? '',
+      role: cp.role ?? 'both',
+      isCustom: true,
+    }
+  }
+
+  // Merge vendor groups
+  const allGroups = [...VENDOR_GROUPS]
+  for (const cv of customVendors) {
+    if (!BUILTIN_VENDOR_IDS.has(cv.vendor_id)) {
+      const products = customProducts
+        .filter((p) => p.vendor_id === cv.vendor_id)
+        .map((p) => p.product_id)
+      allGroups.push({
+        id: cv.vendor_id,
+        name: cv.name,
+        color: cv.color ?? '#888888',
+        products,
+        isCustom: true,
+      })
+    } else {
+      // Add custom products to existing vendor group
+      const existing = allGroups.find((g) => g.id === cv.vendor_id)
+      if (existing) {
+        const newProductIds = customProducts
+          .filter((p) => p.vendor_id === cv.vendor_id)
+          .map((p) => p.product_id)
+        existing.products = [...existing.products, ...newProductIds]
+      }
+    }
+  }
+
+  const sourceGroups = allGroups
+    .map((g) => ({
+      ...g,
+      products: g.products.map((id) => allProducts[id]).filter((p) => p && (p.role === 'source' || p.role === 'both')),
+    }))
+    .filter((g) => g.products.length > 0)
+
+  const targetGroups = allGroups
+    .map((g) => ({
+      ...g,
+      products: g.products.map((id) => allProducts[id]).filter((p) => p && (p.role === 'target' || p.role === 'both')),
+    }))
+    .filter((g) => g.products.length > 0)
+
+  return { allProducts, allGroups, sourceGroups, targetGroups }
+}
+
+export { BUILTIN_VENDOR_IDS, BUILTIN_PRODUCT_IDS }

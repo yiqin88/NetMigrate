@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { PRODUCTS, VENDOR_GROUPS, SOURCE_PRODUCTS, TARGET_PRODUCTS } from '../../constants/vendors'
+import { useVendors } from '../../hooks/useVendors'
 
 export default function TrainingConfigs() {
   const [examples, setExamples] = useState([])
@@ -110,14 +110,19 @@ function StatChip({ label, value, color }) {
 // ── Upload form ───────────────────────────────────────────────────────────────
 
 function TrainingForm({ onSaved, onCancel }) {
-  const [sourceVendor, setSourceVendor] = useState(SOURCE_PRODUCTS[0]?.id ?? '')
-  const [targetVendor, setTargetVendor] = useState(TARGET_PRODUCTS[0]?.id ?? '')
+  const { allProducts, sourceGroups, targetGroups } = useVendors()
+  const srcProducts = sourceGroups.flatMap((g) => g.products)
+  const tgtProducts = targetGroups.flatMap((g) => g.products)
+  const [sourceVendor, setSourceVendor] = useState(srcProducts[0]?.id ?? '')
+  const [targetVendor, setTargetVendor] = useState(tgtProducts[0]?.id ?? '')
   const [sourceConfig, setSourceConfig] = useState('')
   const [convertedConfig, setConvertedConfig] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
   const [savingMsg, setSavingMsg] = useState('')
   const [error, setError] = useState('')
+  const [validation, setValidation] = useState(null) // { src, tgt } detection results
+  const [validating, setValidating] = useState(false)
   const srcFileRef = useRef(null)
   const tgtFileRef = useRef(null)
 
@@ -151,8 +156,8 @@ function TrainingForm({ onSaved, onCancel }) {
       const mappings = await window.electronAPI.training.extractMappings({
         sourceConfig: sourceConfig.trim(),
         convertedConfig: convertedConfig.trim(),
-        sourceVendor: PRODUCTS[sourceVendor]?.fullName ?? sourceVendor,
-        targetVendor: PRODUCTS[targetVendor]?.fullName ?? targetVendor,
+        sourceVendor: allProducts[sourceVendor]?.fullName ?? sourceVendor,
+        targetVendor: allProducts[targetVendor]?.fullName ?? targetVendor,
       })
 
       // 3. Update the record with mappings
@@ -175,8 +180,8 @@ function TrainingForm({ onSaved, onCancel }) {
         <div className="flex-1">
           <label className="block text-xs text-text-secondary mb-1">Source Product</label>
           <select className="input text-xs" value={sourceVendor} onChange={(e) => setSourceVendor(e.target.value)}>
-            {VENDOR_GROUPS.map((g) => {
-              const prods = g.products.map((id) => PRODUCTS[id]).filter((p) => p.role === 'source' || p.role === 'both')
+            {sourceGroups.map((g) => {
+              const prods = g.products
               if (!prods.length) return null
               return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}</optgroup>
             })}
@@ -186,8 +191,8 @@ function TrainingForm({ onSaved, onCancel }) {
         <div className="flex-1">
           <label className="block text-xs text-text-secondary mb-1">Target Product</label>
           <select className="input text-xs" value={targetVendor} onChange={(e) => setTargetVendor(e.target.value)}>
-            {VENDOR_GROUPS.map((g) => {
-              const prods = g.products.map((id) => PRODUCTS[id]).filter((p) => p.role === 'target' || p.role === 'both')
+            {targetGroups.map((g) => {
+              const prods = g.products
               if (!prods.length) return null
               return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}</optgroup>
             })}
@@ -202,6 +207,47 @@ function TrainingForm({ onSaved, onCancel }) {
 
       <ConfigField label="Source Config" value={sourceConfig} onChange={setSourceConfig} fileRef={srcFileRef} onFile={(f) => readFile(f, setSourceConfig)} placeholder="Paste the source config (e.g. Cisco running-config)…" />
       <ConfigField label="Converted Config (working version)" value={convertedConfig} onChange={setConvertedConfig} fileRef={tgtFileRef} onFile={(f) => readFile(f, setConvertedConfig)} placeholder="Paste the working converted config (e.g. Aruba CX)…" />
+
+      {/* Validate button */}
+      {sourceConfig.trim() && convertedConfig.trim() && (
+        <div className="space-y-2">
+          <button
+            className="btn-secondary text-xs w-full"
+            disabled={validating}
+            onClick={async () => {
+              setValidating(true)
+              setValidation(null)
+              try {
+                const [src, tgt] = await Promise.all([
+                  window.electronAPI?.claude?.detectVendor(sourceConfig),
+                  window.electronAPI?.claude?.detectVendor(convertedConfig),
+                ])
+                setValidation({ src, tgt })
+                // Auto-correct if detected
+                if (src?.productId && src.productId !== sourceVendor) setSourceVendor(src.productId)
+                if (tgt?.productId && tgt.productId !== targetVendor) setTargetVendor(tgt.productId)
+              } catch { /* ignore */ }
+              setValidating(false)
+            }}
+          >
+            {validating ? 'Validating…' : 'Validate Configs'}
+          </button>
+          {validation && (
+            <div className="space-y-1 text-xs">
+              {validation.src?.productId === sourceVendor ? (
+                <p className="text-accent-green">✅ Source matches {allProducts[sourceVendor]?.fullName}</p>
+              ) : validation.src?.productId ? (
+                <p className="text-accent-yellow">⚠️ Source looks like {validation.src.product} — auto-corrected</p>
+              ) : null}
+              {validation.tgt?.productId === targetVendor ? (
+                <p className="text-accent-green">✅ Target matches {allProducts[targetVendor]?.fullName}</p>
+              ) : validation.tgt?.productId ? (
+                <p className="text-accent-yellow">⚠️ Target looks like {validation.tgt.product} — auto-corrected</p>
+              ) : null}
+            </div>
+          )}
+        </div>
+      )}
 
       {error && <p className="text-xs text-accent-red">{error}</p>}
       {savingMsg && <p className="text-xs text-accent-blue animate-pulse-subtle">{savingMsg}</p>}
@@ -255,6 +301,7 @@ function TrainingList({ examples, loading, onDelete, onUpdate }) {
 }
 
 function TrainingCard({ example, onDelete, onUpdate }) {
+  const { allProducts } = useVendors()
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editVendorSrc, setEditVendorSrc] = useState(example.source_vendor)
@@ -262,8 +309,8 @@ function TrainingCard({ example, onDelete, onUpdate }) {
   const [editDesc, setEditDesc] = useState(example.description ?? '')
 
   const mappings = example.command_mappings ?? []
-  const srcProduct = PRODUCTS[example.source_vendor]
-  const tgtProduct = PRODUCTS[example.target_vendor]
+  const srcProduct = allProducts[example.source_vendor]
+  const tgtProduct = allProducts[example.target_vendor]
 
   async function handleEditSave() {
     await onUpdate(example.id, {
@@ -318,13 +365,13 @@ function TrainingCard({ example, onDelete, onUpdate }) {
             <div className="flex-1">
               <label className="text-[10px] text-text-muted">Source</label>
               <select className="input text-xs py-1" value={editVendorSrc} onChange={(e) => setEditVendorSrc(e.target.value)}>
-                {Object.values(PRODUCTS).map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+                {Object.values(allProducts).map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
               </select>
             </div>
             <div className="flex-1">
               <label className="text-[10px] text-text-muted">Target</label>
               <select className="input text-xs py-1" value={editVendorTgt} onChange={(e) => setEditVendorTgt(e.target.value)}>
-                {Object.values(PRODUCTS).map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+                {Object.values(allProducts).map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
               </select>
             </div>
           </div>

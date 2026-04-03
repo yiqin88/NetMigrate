@@ -222,3 +222,61 @@ export async function getTrainingExamplesForConversion({ sourceVendor, targetVen
   if (error) { console.error('[supabase] getTrainingExamples:', error.message); return [] }
   return data ?? []
 }
+
+// ── Custom vendors & products ─────────────────────────────────────────────────
+
+export async function listCustomVendors() {
+  const client = getClient()
+  if (!client) return []
+  const { data, error } = await client.from('custom_vendors').select('*').order('name')
+  if (error) { console.error('[supabase] listCustomVendors:', error.message); return [] }
+  return data ?? []
+}
+
+export async function saveCustomVendor(record) {
+  const client = getClient()
+  if (!client) throw new Error('Supabase not configured.')
+  const { data, error } = await client.from('custom_vendors').insert(record).select().single()
+  if (error) throw new Error(`Save vendor failed: ${error.message}`)
+  return data
+}
+
+export async function deleteCustomVendor(id) {
+  const client = getClient()
+  if (!client) throw new Error('Supabase not configured.')
+  // Delete products first, then vendor
+  await client.from('custom_products').delete().eq('vendor_id', id)
+  const { error } = await client.from('custom_vendors').delete().eq('id', id)
+  if (error) throw new Error(`Delete vendor failed: ${error.message}`)
+}
+
+export async function listCustomProducts() {
+  const client = getClient()
+  if (!client) return []
+  const { data, error } = await client.from('custom_products').select('*').order('full_name')
+  if (error) { console.error('[supabase] listCustomProducts:', error.message); return [] }
+  return data ?? []
+}
+
+export async function saveCustomProduct(record) {
+  const client = getClient()
+  if (!client) throw new Error('Supabase not configured.')
+  const { data, error } = await client.from('custom_products').insert(record).select().single()
+  if (error) throw new Error(`Save product failed: ${error.message}`)
+  return data
+}
+
+export async function updateCustomProduct(id, updates) {
+  const client = getClient()
+  if (!client) throw new Error('Supabase not configured.')
+  const { data, error } = await client.from('custom_products').update(updates).eq('id', id).select().single()
+  if (error) throw new Error(`Update product failed: ${error.message}`)
+  return data
+}
+
+export async function deleteCustomProduct(id) {
+  const client = getClient()
+  if (!client) throw new Error('Supabase not configured.')
+  const { error } = await client.from('custom_products').delete().eq('id', id)
+  if (error) throw new Error(`Delete product failed: ${error.message}`)
+}

@@ -4,12 +4,14 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupUpdater } from './updater'
 import { setupSafeStorage, getSetting, setSetting, deleteSetting } from './settings'
 import { IPC } from '../shared/ipcChannels'
-import { convertConfig, testApiKey, extractCommandMappings } from './api/claude'
+import { convertConfig, testApiKey, extractCommandMappings, detectConfigVendor } from './api/claude'
 import {
   getRecentMigrations, saveMigration, getMigrationStats,
   testConnection as testSupabaseConnection, resetClient as resetSupabaseClient,
   listTrainingExamples, saveTrainingExample, updateTrainingExample,
   deleteTrainingExample, getTrainingExampleCounts, getTrainingExamplesForConversion,
+  listCustomVendors, saveCustomVendor, deleteCustomVendor,
+  listCustomProducts, saveCustomProduct, updateCustomProduct, deleteCustomProduct,
 } from './api/supabase'
 
 let mainWindow
@@ -232,3 +234,19 @@ ipcMain.handle(IPC.TRAINING_GET_EXAMPLES, async (_, payload) => {
 ipcMain.handle(IPC.TRAINING_EXTRACT_MAPPINGS, async (_, payload) => {
   return await extractCommandMappings(payload)
 })
+
+// ── IPC: Claude config detection ──────────────────────────────────────────────
+
+ipcMain.handle(IPC.CLAUDE_DETECT_VENDOR, async (_, configText) => {
+  return await detectConfigVendor(configText)
+})
+
+// ── IPC: Custom vendors/products ──────────────────────────────────────────────
+
+ipcMain.handle(IPC.CUSTOM_VENDORS_LIST, async () => await listCustomVendors())
+ipcMain.handle(IPC.CUSTOM_VENDORS_SAVE, async (_, record) => await saveCustomVendor(record))
+ipcMain.handle(IPC.CUSTOM_VENDORS_DELETE, async (_, id) => await deleteCustomVendor(id))
+ipcMain.handle(IPC.CUSTOM_PRODUCTS_LIST, async () => await listCustomProducts())
+ipcMain.handle(IPC.CUSTOM_PRODUCTS_SAVE, async (_, record) => await saveCustomProduct(record))
+ipcMain.handle(IPC.CUSTOM_PRODUCTS_UPDATE, async (_, { id, updates }) => await updateCustomProduct(id, updates))
+ipcMain.handle(IPC.CUSTOM_PRODUCTS_DELETE, async (_, id) => await deleteCustomProduct(id))

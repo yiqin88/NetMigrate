@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on(IPC.CLAUDE_CONVERT_PROGRESS, handler)
       return () => ipcRenderer.removeListener(IPC.CLAUDE_CONVERT_PROGRESS, handler)
     },
+    detectVendor: (configText) => ipcRenderer.invoke(IPC.CLAUDE_DETECT_VENDOR, configText),
   },
 
   // ── Supabase (calls go through main process) ─────────────────────────────
@@ -60,6 +61,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     counts: () => ipcRenderer.invoke(IPC.TRAINING_COUNT),
     getExamples: (payload) => ipcRenderer.invoke(IPC.TRAINING_GET_EXAMPLES, payload),
     extractMappings: (payload) => ipcRenderer.invoke(IPC.TRAINING_EXTRACT_MAPPINGS, payload),
+  },
+
+  // ── Custom vendors/products (Supabase sync) ───────────────────────────────
+  customVendors: {
+    list: () => ipcRenderer.invoke(IPC.CUSTOM_VENDORS_LIST),
+    save: (record) => ipcRenderer.invoke(IPC.CUSTOM_VENDORS_SAVE, record),
+    delete: (id) => ipcRenderer.invoke(IPC.CUSTOM_VENDORS_DELETE, id),
+  },
+  customProducts: {
+    list: () => ipcRenderer.invoke(IPC.CUSTOM_PRODUCTS_LIST),
+    save: (record) => ipcRenderer.invoke(IPC.CUSTOM_PRODUCTS_SAVE, record),
+    update: (id, updates) => ipcRenderer.invoke(IPC.CUSTOM_PRODUCTS_UPDATE, { id, updates }),
+    delete: (id) => ipcRenderer.invoke(IPC.CUSTOM_PRODUCTS_DELETE, id),
   },
 
   // ── Auto-updater ──────────────────────────────────────────────────────────

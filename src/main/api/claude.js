@@ -203,6 +203,43 @@ export async function testApiKey(apiKey) {
 }
 
 /**
+ * Detect vendor/product from a config text snippet.
+ * Returns { vendor, product, productId, confidence }
+ */
+export async function detectConfigVendor(configText) {
+  const apiKey = getApiKey()
+  if (!apiKey) return { vendor: null, product: null, productId: null, confidence: 'low' }
+
+  console.log('[claude] detectConfigVendor')
+  try {
+    const { status, body } = await httpsPost(apiKey, {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 256,
+      system: `You identify network device vendors and products from configuration text.
+Respond ONLY with JSON: { "vendor": "string", "product": "string", "productId": "string", "confidence": "high|medium|low" }
+
+Known productId values: cisco_ios, cisco_ios_xe, cisco_nxos, cisco_iosxr, cisco_wlc, huawei_vrp, huawei_comware, fortinet_fortiswitch, fortinet_fortigate, paloalto_panos, aruba_aos_cx, aruba_aos_switch, aruba_comware
+
+Pick the closest matching productId. If unsure, use confidence "low".`,
+      messages: [{ role: 'user', content: `Identify the vendor and product:\n\`\`\`\n${configText.slice(0, 2000)}\n\`\`\`` }],
+    }, 15_000)
+
+    if (status < 200 || status >= 300) return { vendor: null, product: null, productId: null, confidence: 'low' }
+
+    const text = body.content?.[0]?.text ?? ''
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return { vendor: null, product: null, productId: null, confidence: 'low' }
+
+    const result = JSON.parse(jsonMatch[0])
+    console.log('[claude] Detected:', result)
+    return result
+  } catch (err) {
+    console.error('[claude] detectConfigVendor error:', err.message)
+    return { vendor: null, product: null, productId: null, confidence: 'low' }
+  }
+}
+
+/**
  * Extract command translation rules from a source/converted config pair.
  * Uses Haiku for speed + cost efficiency.
  */

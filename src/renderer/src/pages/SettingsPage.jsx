@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { testConnection, resetSupabaseClient } from '../services/supabase'
 import { testApiKey } from '../services/claude'
 import TrainingConfigs from '../components/TrainingConfigs/TrainingConfigs'
+import VendorManager from '../components/VendorManager/VendorManager'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
@@ -167,7 +168,10 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Training configs — outside the save form since it has its own save flow */}
+          {/* Vendor & product management */}
+          <VendorManager />
+
+          {/* Training configs */}
           <TrainingConfigs />
 
           {saveError && (

@@ -35,6 +35,7 @@ export const IPC = {
   CLAUDE_CONVERT: 'claude:convert',
   CLAUDE_CONVERT_PROGRESS: 'claude:convert-progress',
   CLAUDE_TEST_KEY: 'claude:test-key',
+  CLAUDE_DETECT_VENDOR: 'claude:detect-vendor',
 
   // Supabase (main process)
   SUPABASE_GET_MIGRATIONS: 'supabase:get-migrations',
@@ -51,4 +52,13 @@ export const IPC = {
   TRAINING_COUNT: 'training:count',
   TRAINING_GET_EXAMPLES: 'training:get-examples',
   TRAINING_EXTRACT_MAPPINGS: 'training:extract-mappings',
+
+  // Custom vendors/products (Supabase sync)
+  CUSTOM_VENDORS_LIST: 'custom:vendors-list',
+  CUSTOM_VENDORS_SAVE: 'custom:vendors-save',
+  CUSTOM_VENDORS_DELETE: 'custom:vendors-delete',
+  CUSTOM_PRODUCTS_LIST: 'custom:products-list',
+  CUSTOM_PRODUCTS_SAVE: 'custom:products-save',
+  CUSTOM_PRODUCTS_UPDATE: 'custom:products-update',
+  CUSTOM_PRODUCTS_DELETE: 'custom:products-delete',
 }

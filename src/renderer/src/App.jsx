@@ -4,9 +4,11 @@ import MigratePage from './pages/MigratePage'
 import DashboardPage from './pages/DashboardPage'
 import SettingsPage from './pages/SettingsPage'
 import UpdateDialog from './components/UpdateDialog/UpdateDialog'
+import { VendorProvider } from './hooks/useVendors'
 
 export default function App() {
   return (
+    <VendorProvider>
     <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppShell>
         <Routes>
@@ -18,5 +20,6 @@ export default function App() {
       </AppShell>
       <UpdateDialog />
     </HashRouter>
+    </VendorProvider>
   )
 }

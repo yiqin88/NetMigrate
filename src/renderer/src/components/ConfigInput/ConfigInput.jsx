@@ -1,15 +1,39 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
   const [config, setConfig] = useState('')
   const [isDragging, setIsDragging] = useState(false)
   const [fileError, setFileError] = useState('')
+  const [detection, setDetection] = useState(null) // { vendor, product, productId, confidence }
+  const [detecting, setDetecting] = useState(false)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
+  const detectTimerRef = useRef(null)
 
   const charCount = config.length
   const lineCount = config ? config.split('\n').length : 0
   const canContinue = config.trim().length > 0
+
+  // Auto-detect vendor when config changes (debounced 2s)
+  useEffect(() => {
+    setDetection(null)
+    if (detectTimerRef.current) clearTimeout(detectTimerRef.current)
+    if (config.trim().length < 50) return
+
+    detectTimerRef.current = setTimeout(async () => {
+      setDetecting(true)
+      try {
+        const result = await window.electronAPI?.claude?.detectVendor(config)
+        if (result?.productId) setDetection(result)
+      } catch { /* ignore */ }
+      setDetecting(false)
+    }, 2000)
+
+    return () => { if (detectTimerRef.current) clearTimeout(detectTimerRef.current) }
+  }, [config])
+
+  const detectionMatch = detection?.productId === vendorPair?.source?.id
+  const detectionMismatch = detection?.productId && !detectionMatch
 
   // ── File reading ────────────────────────────────────────────────────────────
 
@@ -140,6 +164,15 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
           )}
           {fileError && (
             <span className="text-accent-red">{fileError}</span>
+          )}
+          {detecting && (
+            <span className="text-accent-blue animate-pulse-subtle">Detecting vendor…</span>
+          )}
+          {detectionMatch && (
+            <span className="text-accent-green">✅ Matches {vendorPair.source.fullName}</span>
+          )}
+          {detectionMismatch && (
+            <span className="text-accent-yellow">⚠️ Looks like {detection.product ?? detection.vendor} (selected: {vendorPair.source.fullName})</span>
           )}
         </div>
 

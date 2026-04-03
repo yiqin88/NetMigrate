@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { SOURCE_GROUPS, TARGET_GROUPS, PRODUCTS, getTargets } from '../../constants/vendors'
+import { useVendors } from '../../hooks/useVendors'
 
 export default function VendorSelector({ onConfirm }) {
+  const { allProducts, sourceGroups, targetGroups } = useVendors()
   const [sourceId, setSourceId] = useState(null)
   const [targetId, setTargetId] = useState(null)
 
-  const source = sourceId ? PRODUCTS[sourceId] : null
-  const target = targetId ? PRODUCTS[targetId] : null
+  const source = sourceId ? allProducts[sourceId] : null
+  const target = targetId ? allProducts[targetId] : null
   const canConfirm = source && target
 
   function handleConfirm() {
@@ -28,7 +29,7 @@ export default function VendorSelector({ onConfirm }) {
             <div className="h-px flex-1 bg-accent-yellow/20" />
           </div>
           <ProductPicker
-            groups={SOURCE_GROUPS}
+            groups={sourceGroups}
             selectedId={sourceId}
             variant="source"
             onSelect={(id) => { setSourceId(id); setTargetId(null) }}
@@ -55,7 +56,7 @@ export default function VendorSelector({ onConfirm }) {
             </div>
           ) : (
             <ProductPicker
-              groups={TARGET_GROUPS}
+              groups={targetGroups}
               selectedId={targetId}
               variant="target"
               onSelect={setTargetId}

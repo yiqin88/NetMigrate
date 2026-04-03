@@ -92,6 +92,66 @@ DO $$ BEGIN
 END $$;
 
 
+-- ── 3. Custom vendors table ──────────────────────────────────────────────────
+-- User-defined vendors that sync across all app instances
+
+CREATE TABLE IF NOT EXISTS public.custom_vendors (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id   text NOT NULL UNIQUE,
+  name        text NOT NULL,
+  color       text DEFAULT '#888888',
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.custom_vendors ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='custom_vendors' AND policyname='anon can select custom_vendors') THEN
+    CREATE POLICY "anon can select custom_vendors" ON public.custom_vendors FOR SELECT TO anon USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='custom_vendors' AND policyname='anon can insert custom_vendors') THEN
+    CREATE POLICY "anon can insert custom_vendors" ON public.custom_vendors FOR INSERT TO anon WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='custom_vendors' AND policyname='anon can delete custom_vendors') THEN
+    CREATE POLICY "anon can delete custom_vendors" ON public.custom_vendors FOR DELETE TO anon USING (true);
+  END IF;
+END $$;
+
+
+-- ── 4. Custom products table ────────────────────────────────────────────────
+-- User-defined products under vendors, synced across all app instances
+
+CREATE TABLE IF NOT EXISTS public.custom_products (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  product_id  text NOT NULL UNIQUE,
+  name        text NOT NULL,
+  full_name   text NOT NULL,
+  vendor_id   text NOT NULL,
+  vendor_name text,
+  color       text DEFAULT '#888888',
+  description text,
+  role        text NOT NULL DEFAULT 'both' CHECK (role IN ('source', 'target', 'both')),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.custom_products ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='custom_products' AND policyname='anon can select custom_products') THEN
+    CREATE POLICY "anon can select custom_products" ON public.custom_products FOR SELECT TO anon USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='custom_products' AND policyname='anon can insert custom_products') THEN
+    CREATE POLICY "anon can insert custom_products" ON public.custom_products FOR INSERT TO anon WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='custom_products' AND policyname='anon can update custom_products') THEN
+    CREATE POLICY "anon can update custom_products" ON public.custom_products FOR UPDATE TO anon USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='custom_products' AND policyname='anon can delete custom_products') THEN
+    CREATE POLICY "anon can delete custom_products" ON public.custom_products FOR DELETE TO anon USING (true);
+  END IF;
+END $$;
+
+
 -- ── Verification ────────────────────────────────────────────────────────────
 -- Run these after the script to verify everything is correct:
 
