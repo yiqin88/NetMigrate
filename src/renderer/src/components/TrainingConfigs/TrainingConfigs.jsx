@@ -127,8 +127,7 @@ function TrainingForm({ onSaved, onCancel }) {
     reader.readAsText(file)
   }
 
-  async function handleSave(e) {
-    e.preventDefault()
+  async function handleSave() {
     if (!sourceConfig.trim() || !convertedConfig.trim()) {
       setError('Both source and converted configs are required.')
       return
@@ -171,7 +170,7 @@ function TrainingForm({ onSaved, onCancel }) {
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-3 bg-surface-2 rounded-lg p-4">
+    <div className="space-y-3 bg-surface-2 rounded-lg p-4">
       <div className="flex gap-3">
         <div className="flex-1">
           <label className="block text-xs text-text-secondary mb-1">Source Vendor</label>
@@ -200,12 +199,12 @@ function TrainingForm({ onSaved, onCancel }) {
       {savingMsg && <p className="text-xs text-accent-blue animate-pulse-subtle">{savingMsg}</p>}
 
       <div className="flex gap-2 justify-end pt-1">
-        <button type="button" className="btn-secondary text-xs" onClick={onCancel}>Cancel</button>
-        <button type="submit" className="btn-primary text-xs" disabled={saving}>
+        <button className="btn-secondary text-xs" onClick={onCancel}>Cancel</button>
+        <button className="btn-primary text-xs" disabled={saving} onClick={handleSave}>
           {saving ? 'Saving…' : 'Save Training Pair'}
         </button>
       </div>
-    </form>
+    </div>
   )
 }
 

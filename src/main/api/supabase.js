@@ -126,15 +126,24 @@ export async function listTrainingExamples({ sourceVendor, targetVendor } = {}) 
   const client = getClient()
   if (!client) return []
 
-  let query = client
-    .from('training_examples')
-    .select('id, source_vendor, target_vendor, description, command_mappings, created_at')
-    .order('created_at', { ascending: false })
-
+  // Try with command_mappings first, fall back without it if column doesn't exist
+  let columns = 'id, source_vendor, target_vendor, description, command_mappings, created_at'
+  let query = client.from('training_examples').select(columns).order('created_at', { ascending: false })
   if (sourceVendor) query = query.eq('source_vendor', sourceVendor)
   if (targetVendor) query = query.eq('target_vendor', targetVendor)
 
-  const { data, error } = await query
+  let { data, error } = await query
+  if (error && error.message.includes('command_mappings')) {
+    // Column doesn't exist yet — query without it
+    columns = 'id, source_vendor, target_vendor, description, created_at'
+    query = client.from('training_examples').select(columns).order('created_at', { ascending: false })
+    if (sourceVendor) query = query.eq('source_vendor', sourceVendor)
+    if (targetVendor) query = query.eq('target_vendor', targetVendor)
+    const result = await query
+    data = result.data
+    error = result.error
+  }
+
   if (error) { console.error('[supabase] listTrainingExamples:', error.message); return [] }
   return data ?? []
 }
