@@ -43,7 +43,7 @@ export default function SavePanel({
   }
 
   async function handleExport() {
-    const vendorName = vendorPair.target.shortName.toLowerCase().replace(/\s+/g, '-')
+    const vendorName = vendorPair.target.fullName.toLowerCase().replace(/\s+/g, '-')
     const ts = new Date().toISOString().slice(0, 10)
     const saved = await window.electronAPI?.file.save({
       content: convertedConfig,
@@ -68,7 +68,7 @@ export default function SavePanel({
           <div>
             <h2 className="text-lg font-semibold text-text-primary">Migration Saved</h2>
             <p className="text-sm text-text-secondary mt-1">
-              {vendorPair.source.shortName} → {vendorPair.target.shortName} · {rating}★ accuracy
+              {vendorPair.source.fullName} → {vendorPair.target.fullName} · {rating}★ accuracy
             </p>
             <p className="text-xs text-text-muted mt-1">
               This migration is now available as a learning example for future conversions

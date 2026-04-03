@@ -58,7 +58,7 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="p-3 border-t border-border">
         <div className="hidden lg:block text-xs text-text-disabled text-center">
-          Cisco → Aruba
+          Multi-vendor migration
         </div>
       </div>
     </aside>

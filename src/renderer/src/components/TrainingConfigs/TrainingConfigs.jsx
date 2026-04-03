@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { VENDORS, MIGRATION_PAIRS } from '../../constants/vendors'
+import { PRODUCTS, VENDOR_GROUPS, SOURCE_PRODUCTS, TARGET_PRODUCTS } from '../../constants/vendors'
 
 export default function TrainingConfigs() {
   const [examples, setExamples] = useState([])
@@ -110,8 +110,8 @@ function StatChip({ label, value, color }) {
 // ── Upload form ───────────────────────────────────────────────────────────────
 
 function TrainingForm({ onSaved, onCancel }) {
-  const [sourceVendor, setSourceVendor] = useState(MIGRATION_PAIRS[0]?.source?.id ?? '')
-  const [targetVendor, setTargetVendor] = useState(MIGRATION_PAIRS[0]?.target?.id ?? '')
+  const [sourceVendor, setSourceVendor] = useState(SOURCE_PRODUCTS[0]?.id ?? '')
+  const [targetVendor, setTargetVendor] = useState(TARGET_PRODUCTS[0]?.id ?? '')
   const [sourceConfig, setSourceConfig] = useState('')
   const [convertedConfig, setConvertedConfig] = useState('')
   const [description, setDescription] = useState('')
@@ -151,8 +151,8 @@ function TrainingForm({ onSaved, onCancel }) {
       const mappings = await window.electronAPI.training.extractMappings({
         sourceConfig: sourceConfig.trim(),
         convertedConfig: convertedConfig.trim(),
-        sourceVendor: VENDORS[Object.keys(VENDORS).find((k) => VENDORS[k].id === sourceVendor)]?.name ?? sourceVendor,
-        targetVendor: VENDORS[Object.keys(VENDORS).find((k) => VENDORS[k].id === targetVendor)]?.name ?? targetVendor,
+        sourceVendor: PRODUCTS[sourceVendor]?.fullName ?? sourceVendor,
+        targetVendor: PRODUCTS[targetVendor]?.fullName ?? targetVendor,
       })
 
       // 3. Update the record with mappings
@@ -173,16 +173,24 @@ function TrainingForm({ onSaved, onCancel }) {
     <div className="space-y-3 bg-surface-2 rounded-lg p-4">
       <div className="flex gap-3">
         <div className="flex-1">
-          <label className="block text-xs text-text-secondary mb-1">Source Vendor</label>
+          <label className="block text-xs text-text-secondary mb-1">Source Product</label>
           <select className="input text-xs" value={sourceVendor} onChange={(e) => setSourceVendor(e.target.value)}>
-            {Object.values(VENDORS).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            {VENDOR_GROUPS.map((g) => {
+              const prods = g.products.map((id) => PRODUCTS[id]).filter((p) => p.role === 'source' || p.role === 'both')
+              if (!prods.length) return null
+              return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}</optgroup>
+            })}
           </select>
         </div>
         <div className="flex items-end pb-2 text-text-muted">→</div>
         <div className="flex-1">
-          <label className="block text-xs text-text-secondary mb-1">Target Vendor</label>
+          <label className="block text-xs text-text-secondary mb-1">Target Product</label>
           <select className="input text-xs" value={targetVendor} onChange={(e) => setTargetVendor(e.target.value)}>
-            {Object.values(VENDORS).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+            {VENDOR_GROUPS.map((g) => {
+              const prods = g.products.map((id) => PRODUCTS[id]).filter((p) => p.role === 'target' || p.role === 'both')
+              if (!prods.length) return null
+              return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}</optgroup>
+            })}
           </select>
         </div>
       </div>
@@ -254,8 +262,8 @@ function TrainingCard({ example, onDelete, onUpdate }) {
   const [editDesc, setEditDesc] = useState(example.description ?? '')
 
   const mappings = example.command_mappings ?? []
-  const srcVendor = Object.values(VENDORS).find((v) => v.id === example.source_vendor)
-  const tgtVendor = Object.values(VENDORS).find((v) => v.id === example.target_vendor)
+  const srcProduct = PRODUCTS[example.source_vendor]
+  const tgtProduct = PRODUCTS[example.target_vendor]
 
   async function handleEditSave() {
     await onUpdate(example.id, {
@@ -271,14 +279,14 @@ function TrainingCard({ example, onDelete, onUpdate }) {
       {/* Card header */}
       <div className="px-3 py-2.5 flex items-center justify-between">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: srcVendor?.color ?? '#666' }} />
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: srcProduct?.color ?? '#666' }} />
           <span className="text-xs font-medium text-text-primary">
-            {srcVendor?.shortName ?? example.source_vendor}
+            {srcProduct?.fullName ?? example.source_vendor}
           </span>
           <span className="text-text-disabled text-xs">→</span>
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tgtVendor?.color ?? '#666' }} />
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tgtProduct?.color ?? '#666' }} />
           <span className="text-xs font-medium text-text-primary">
-            {tgtVendor?.shortName ?? example.target_vendor}
+            {tgtProduct?.fullName ?? example.target_vendor}
           </span>
           {example.description && (
             <span className="text-xs text-text-muted truncate max-w-[150px] ml-1">— {example.description}</span>
@@ -310,13 +318,13 @@ function TrainingCard({ example, onDelete, onUpdate }) {
             <div className="flex-1">
               <label className="text-[10px] text-text-muted">Source</label>
               <select className="input text-xs py-1" value={editVendorSrc} onChange={(e) => setEditVendorSrc(e.target.value)}>
-                {Object.values(VENDORS).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                {Object.values(PRODUCTS).map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
               </select>
             </div>
             <div className="flex-1">
               <label className="text-[10px] text-text-muted">Target</label>
               <select className="input text-xs py-1" value={editVendorTgt} onChange={(e) => setEditVendorTgt(e.target.value)}>
-                {Object.values(VENDORS).map((v) => <option key={v.id} value={v.id}>{v.name}</option>)}
+                {Object.values(PRODUCTS).map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
               </select>
             </div>
           </div>

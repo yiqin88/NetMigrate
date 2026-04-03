@@ -71,7 +71,7 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
         <ArrowRight />
         <VendorChip vendor={vendorPair.target} color="green" />
         <span className="text-text-muted ml-auto">
-          Paste your {vendorPair.source.shortName} backup config below
+          Paste your {vendorPair.source.fullName} backup config below
         </span>
       </div>
 
@@ -100,7 +100,7 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
             text-text-primary placeholder:text-text-muted resize-none
             focus:outline-none selectable leading-relaxed
             ${isDragging ? 'opacity-20 pointer-events-none' : ''}`}
-          placeholder={`Paste ${vendorPair.source.shortName} configuration here…\n\nExample:\n!\nversion 16.9\n!\nvlan 10\n name Management\n!\ninterface GigabitEthernet1/0/1\n description Uplink\n switchport mode trunk\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.255 area 0\n!`}
+          placeholder={`Paste ${vendorPair.source.fullName} configuration here…\n\nExample:\n!\nversion 16.9\n!\nvlan 10\n name Management\n!\ninterface GigabitEthernet1/0/1\n description Uplink\n switchport mode trunk\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.255 area 0\n!`}
           value={config}
           onChange={(e) => { setConfig(e.target.value); setFileError('') }}
           onPaste={handlePaste}
@@ -186,7 +186,7 @@ function VendorChip({ vendor, color }) {
         className="w-2 h-2 rounded-full flex-shrink-0"
         style={{ backgroundColor: vendor.color }}
       />
-      {vendor.shortName}
+      {vendor.fullName}
     </span>
   )
 }

@@ -104,11 +104,11 @@ export default function DiffView({ sourceConfig, convertedConfig, onChange, vend
             <>
               <span className="text-xs text-text-muted flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-sm bg-accent-red/60 inline-block" />
-                {vendorPair?.source?.shortName ?? 'Source'}
+                {vendorPair?.source?.fullName ?? 'Source'}
               </span>
               <span className="text-xs text-text-muted flex items-center gap-1.5">
                 <span className="w-2 h-2 rounded-sm bg-accent-green/60 inline-block" />
-                {vendorPair?.target?.shortName ?? 'Target'}
+                {vendorPair?.target?.fullName ?? 'Target'}
               </span>
             </>
           )}

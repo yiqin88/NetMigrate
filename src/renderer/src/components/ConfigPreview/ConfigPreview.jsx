@@ -25,7 +25,7 @@ export default function ConfigPreview({ sourceConfig, vendorPair, onConfirm, onB
         <div>
           <h2 className="text-base font-semibold text-text-primary">Config Detected</h2>
           <p className="text-xs text-text-muted mt-0.5">
-            {totalElements} elements found in {vendorPair.source.shortName} config
+            {totalElements} elements found in {vendorPair.source.fullName} config
           </p>
         </div>
         {totalElements === 0 && (

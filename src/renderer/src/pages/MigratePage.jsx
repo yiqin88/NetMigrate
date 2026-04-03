@@ -304,7 +304,7 @@ function SummaryBar({ summary, vendorPair }) {
         </span>
       ))}
       <span className="text-xs text-text-muted ml-1">
-        → {vendorPair?.target?.shortName} syntax
+        → {vendorPair?.target?.fullName} syntax
       </span>
     </div>
   )

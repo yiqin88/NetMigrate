@@ -282,13 +282,21 @@ export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, 
 // ── Prompt builders ───────────────────────────────────────────────────────────
 
 function buildSystemPrompt(sourceVendor, targetVendor) {
+  const srcLabel = sourceVendor.fullName ?? sourceVendor.name
+  const srcDesc = sourceVendor.description ?? ''
+  const tgtLabel = targetVendor.fullName ?? targetVendor.name
+  const tgtDesc = targetVendor.description ?? ''
+
   return `You are an expert network engineer specializing in migrating device configurations between vendors.
 
-Your task is to convert ${sourceVendor.name} configuration syntax to equivalent ${targetVendor.name} syntax.
+Source platform: ${srcLabel} (${srcDesc})
+Target platform: ${tgtLabel} (${tgtDesc})
+
+Your task is to convert ${srcLabel} configuration syntax to equivalent ${tgtLabel} syntax.
 
 Rules:
 1. Preserve all logical functionality — VLANs, routing, switching behaviour must be equivalent
-2. Use ${targetVendor.name} native syntax and best practices
+2. Use ${tgtLabel} native syntax and best practices
 3. If a feature cannot be directly mapped, add a WARNING comment explaining why
 4. Output ONLY the converted configuration — no explanations outside the config
 5. Format warnings as: # WARNING: <severity> - <explanation>
