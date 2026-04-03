@@ -6,29 +6,44 @@ export default function SettingsPage() {
   const [supabaseUrl, setSupabaseUrl] = useState('')
   const [supabaseKey, setSupabaseKey] = useState('')
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [connStatus, setConnStatus] = useState(null) // null | 'testing' | 'ok' | 'error'
   const [connError, setConnError] = useState('')
 
   useEffect(() => {
     async function load() {
-      const key = await window.electronAPI?.safeStore.get('anthropic_api_key')
-      if (key) setApiKey(key)
-      const url = await window.electronAPI?.settings.get('supabase_url')
-      if (url) setSupabaseUrl(url)
-      const sk = await window.electronAPI?.settings.get('supabase_anon_key')
-      if (sk) setSupabaseKey(sk)
+      try {
+        const key = await window.electronAPI?.safeStore.get('anthropic_api_key')
+        if (key) setApiKey(key)
+      } catch (err) {
+        console.error('[settings] failed to load API key:', err)
+      }
+      try {
+        const url = await window.electronAPI?.settings.get('supabase_url')
+        if (url) setSupabaseUrl(url)
+        const sk = await window.electronAPI?.settings.get('supabase_anon_key')
+        if (sk) setSupabaseKey(sk)
+      } catch (err) {
+        console.error('[settings] failed to load Supabase settings:', err)
+      }
     }
     load()
   }, [])
 
   async function handleSave(e) {
     e.preventDefault()
-    if (apiKey) await window.electronAPI?.safeStore.set('anthropic_api_key', apiKey)
-    if (supabaseUrl) await window.electronAPI?.settings.set('supabase_url', supabaseUrl)
-    if (supabaseKey) await window.electronAPI?.settings.set('supabase_anon_key', supabaseKey)
-    resetSupabaseClient()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+    setSaveError('')
+    try {
+      if (apiKey) await window.electronAPI?.safeStore.set('anthropic_api_key', apiKey)
+      if (supabaseUrl) await window.electronAPI?.settings.set('supabase_url', supabaseUrl)
+      if (supabaseKey) await window.electronAPI?.settings.set('supabase_anon_key', supabaseKey)
+      resetSupabaseClient()
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+    } catch (err) {
+      console.error('[settings] save failed:', err)
+      setSaveError(err.message ?? 'Failed to save settings')
+    }
   }
 
   async function handleTestConnection() {
@@ -125,6 +140,12 @@ export default function SettingsPage() {
               />
             </div>
           </section>
+
+          {saveError && (
+            <div className="badge-critical w-full text-sm p-3 rounded-lg animate-fade-in">
+              {saveError}
+            </div>
+          )}
 
           <div className="flex items-center gap-3">
             <button type="submit" className="btn-primary">
