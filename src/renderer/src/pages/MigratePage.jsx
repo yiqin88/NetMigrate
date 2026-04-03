@@ -24,6 +24,7 @@ export default function MigratePage() {
   const [convertedConfig, setConvertedConfig] = useState('')
   const [conversionResult, setConversionResult] = useState(null)
   const [corrections, setCorrections] = useState(0)
+  const [convertTrigger, setConvertTrigger] = useState(0) // increment to trigger conversion
 
   // Ref to original converted text — used to detect manual edits
   const originalConvertedRef = useRef('')
@@ -33,11 +34,12 @@ export default function MigratePage() {
     convert, reset: resetConv,
   } = useConversion()
 
-  // ── Auto-trigger conversion when entering diff step ────────────────────────
+  // ── Auto-trigger conversion when convertTrigger changes ────────────────────
   useEffect(() => {
+    if (convertTrigger === 0) return // initial render, skip
     if (step !== 'diff' || !sourceConfig || !vendorPair.source) return
-    if (convStatus !== 'idle') return // already ran or running
 
+    console.log('[MigratePage] Triggering conversion #' + convertTrigger)
     convert({ sourceConfig, sourceVendor: vendorPair.source, targetVendor: vendorPair.target })
       .then((result) => {
         setConvertedConfig(result.config)
@@ -45,7 +47,7 @@ export default function MigratePage() {
         originalConvertedRef.current = result.config
       })
       .catch(() => {}) // error already in convStatus
-  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [convertTrigger]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Track corrections when user edits converted config ────────────────────
   function handleConvertedChange(newValue) {
@@ -73,7 +75,9 @@ export default function MigratePage() {
     setConversionResult(null)
     setCorrections(0)
     originalConvertedRef.current = ''
-    goTo('diff')
+    setStep('diff')
+    // Trigger conversion in next tick after state is updated
+    setConvertTrigger((t) => t + 1)
   }
 
   function handleReset() {
@@ -83,6 +87,7 @@ export default function MigratePage() {
     setConvertedConfig('')
     setConversionResult(null)
     setCorrections(0)
+    setConvertTrigger(0)
     originalConvertedRef.current = ''
     resetConv()
   }

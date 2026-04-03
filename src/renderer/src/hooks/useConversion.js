@@ -33,6 +33,7 @@ export function useConversion() {
   }, [])
 
   function startProgressCycle() {
+    stopProgressCycle() // clear any previous interval
     let idx = 0
     startTimeRef.current = Date.now()
 
@@ -61,23 +62,40 @@ export function useConversion() {
   }
 
   const convert = useCallback(async ({ sourceConfig, sourceVendor, targetVendor }) => {
+    console.log('[useConversion] convert() called')
     setState({ ...INITIAL_STATE, status: 'loading', progressMessage: 'Preparing conversion…' })
     startProgressCycle()
 
     try {
-      const examples = await getRecentMigrations({
-        sourceVendor: sourceVendor.id,
-        targetVendor: targetVendor.id,
-        limit: 10,
-      })
+      // Fetch learning examples with a 5-second timeout — don't let Supabase block the conversion
+      let examples = []
+      try {
+        console.log('[useConversion] Fetching Supabase examples…')
+        const exPromise = getRecentMigrations({
+          sourceVendor: sourceVendor.id,
+          targetVendor: targetVendor.id,
+          limit: 10,
+        })
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Supabase timeout')), 5000)
+        )
+        examples = await Promise.race([exPromise, timeoutPromise])
+        console.log('[useConversion] Got', examples.length, 'examples from Supabase')
+      } catch (err) {
+        console.warn('[useConversion] Supabase examples failed (non-blocking):', err.message)
+        examples = []
+      }
 
       setState((s) => ({ ...s, progressMessage: 'Sending config to Claude…' }))
 
+      console.log('[useConversion] Calling convertConfig…')
       const result = await convertConfig({ sourceConfig, sourceVendor, targetVendor, examples })
+      console.log('[useConversion] Conversion success!')
       stopProgressCycle()
       setState({ status: 'success', result, error: null, progressMessage: '', elapsed: 0 })
       return result
     } catch (err) {
+      console.error('[useConversion] Conversion failed:', err.message)
       stopProgressCycle()
       setState({ status: 'error', result: null, error: err.message, progressMessage: '', elapsed: 0 })
       throw err

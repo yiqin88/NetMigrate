@@ -6,8 +6,53 @@ const MAX_TOKENS = 8192
 const TIMEOUT_MS = 60_000
 const MAX_CONFIG_CHARS = 200_000 // ~200 KB — guard against huge configs
 
+/**
+ * Validate an API key by making a minimal API call.
+ * Returns { valid: true } or { valid: false, error: string }.
+ */
+export async function testApiKey(apiKey) {
+  if (!apiKey || !apiKey.startsWith('sk-')) {
+    return { valid: false, error: 'API key must start with "sk-"' }
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 15_000)
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 4,
+        messages: [{ role: 'user', content: 'Hi' }],
+      }),
+    })
+    clearTimeout(timeout)
+
+    if (response.ok) return { valid: true }
+
+    if (response.status === 401) return { valid: false, error: 'Invalid API key' }
+    if (response.status === 403) return { valid: false, error: 'API key lacks permissions' }
+
+    const body = await response.json().catch(() => ({}))
+    return { valid: false, error: body?.error?.message ?? `API error ${response.status}` }
+  } catch (err) {
+    clearTimeout(timeout)
+    if (err.name === 'AbortError') return { valid: false, error: 'Request timed out (15s)' }
+    return { valid: false, error: `Network error: ${err.message}` }
+  }
+}
+
 export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, examples = [] }) {
+  console.log('[claude] convertConfig called — fetching API key…')
   const apiKey = await window.electronAPI?.safeStore.get('anthropic_api_key')
+  console.log('[claude] API key retrieved:', apiKey ? `${apiKey.slice(0, 8)}…` : 'NULL')
   if (!apiKey) throw new Error('Anthropic API key not configured. Go to Settings to add it.')
 
   // Guard: reject excessively large configs before sending
@@ -21,6 +66,8 @@ export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, 
 
   const systemPrompt = buildSystemPrompt(sourceVendor, targetVendor)
   const userPrompt = buildUserPrompt(sourceConfig, sourceVendor, targetVendor, examples)
+
+  console.log('[claude] Making API call — config size:', sourceConfig.length, 'chars, examples:', examples.length)
 
   // Abort controller for 60-second timeout
   const controller = new AbortController()
@@ -52,9 +99,11 @@ export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, 
       )
     }
     // Network error
+    console.error('[claude] Network error:', err.message)
     throw new Error(`Network error: ${err.message}. Check your internet connection.`)
   }
   clearTimeout(timeoutId)
+  console.log('[claude] Response status:', response.status)
 
   if (!response.ok) {
     let errorMessage = `API error ${response.status}`
@@ -83,11 +132,14 @@ export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, 
   }
 
   const text = result.content?.[0]?.text ?? ''
+  console.log('[claude] Response text length:', text.length, 'chars')
   if (!text) {
     throw new Error('Claude returned an empty response. Try again.')
   }
 
-  return parseConversionResponse(text)
+  const parsed = parseConversionResponse(text)
+  console.log('[claude] Parsed result — config:', parsed.config?.length ?? 0, 'chars, warnings:', parsed.warnings?.length ?? 0)
+  return parsed
 }
 
 function buildSystemPrompt(sourceVendor, targetVendor) {

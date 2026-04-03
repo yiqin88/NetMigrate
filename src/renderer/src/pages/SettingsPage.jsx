@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { testConnection, resetSupabaseClient } from '../services/supabase'
+import { testApiKey } from '../services/claude'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
@@ -7,6 +8,8 @@ export default function SettingsPage() {
   const [supabaseKey, setSupabaseKey] = useState('')
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [apiKeyStatus, setApiKeyStatus] = useState(null) // null | 'testing' | 'valid' | 'invalid'
+  const [apiKeyError, setApiKeyError] = useState('')
   const [connStatus, setConnStatus] = useState(null) // null | 'testing' | 'ok' | 'error'
   const [connError, setConnError] = useState('')
 
@@ -33,6 +36,8 @@ export default function SettingsPage() {
   async function handleSave(e) {
     e.preventDefault()
     setSaveError('')
+    setApiKeyStatus(null)
+    setApiKeyError('')
     try {
       if (apiKey) await window.electronAPI?.safeStore.set('anthropic_api_key', apiKey)
       if (supabaseUrl) await window.electronAPI?.settings.set('supabase_url', supabaseUrl)
@@ -40,6 +45,14 @@ export default function SettingsPage() {
       resetSupabaseClient()
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
+
+      // Auto-validate API key after saving
+      if (apiKey) {
+        setApiKeyStatus('testing')
+        const result = await testApiKey(apiKey)
+        setApiKeyStatus(result.valid ? 'valid' : 'invalid')
+        if (!result.valid) setApiKeyError(result.error)
+      }
     } catch (err) {
       console.error('[settings] save failed:', err)
       setSaveError(err.message ?? 'Failed to save settings')
@@ -81,8 +94,24 @@ export default function SettingsPage() {
                 onChange={(e) => setApiKey(e.target.value)}
               />
               <p className="text-xs text-text-muted mt-1.5">
-                Stored securely using OS keychain. Never saved to disk in plaintext.
+                Stored securely using encrypted local storage.
               </p>
+              {/* API key validation status */}
+              {apiKeyStatus === 'testing' && (
+                <p className="text-xs text-accent-blue mt-2 animate-pulse-subtle">
+                  Validating API key…
+                </p>
+              )}
+              {apiKeyStatus === 'valid' && (
+                <div className="badge-success w-fit mt-2 animate-fade-in">
+                  API key valid ✅
+                </div>
+              )}
+              {apiKeyStatus === 'invalid' && (
+                <div className="badge-critical w-fit mt-2 animate-fade-in">
+                  API key invalid ❌ {apiKeyError && `— ${apiKeyError}`}
+                </div>
+              )}
             </div>
           </section>
 

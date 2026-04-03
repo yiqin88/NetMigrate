@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell, safeStorage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupUpdater } from './updater'
@@ -132,51 +132,17 @@ ipcMain.handle(IPC.SETTINGS_GET, (_, key) => getSetting(key))
 ipcMain.handle(IPC.SETTINGS_SET, (_, key, value) => setSetting(key, value))
 ipcMain.handle(IPC.SETTINGS_DELETE, (_, key) => deleteSetting(key))
 
+// electron-store handles persistence + basic encryption via encryptionKey.
+// No more Electron safeStorage — it was unreliable across dev/prod restarts.
 ipcMain.handle(IPC.SAFE_STORE_GET, (_, key) => {
-  const stored = getSetting(`__safe_${key}`)
-  if (!stored) return null
-
-  // If stored as encrypted (object with __encrypted flag), decrypt it
-  if (typeof stored === 'object' && stored.__encrypted) {
-    try {
-      return safeStorage.decryptString(Buffer.from(stored.data, 'base64'))
-    } catch (err) {
-      console.error('[safeStore] decrypt failed:', err.message)
-      return null
-    }
-  }
-
-  // Legacy format: raw base64-encoded encrypted string (old code stored this before the format change)
-  if (typeof stored === 'string') {
-    try {
-      return safeStorage.decryptString(Buffer.from(stored, 'base64'))
-    } catch {
-      // Not encrypted — treat as plaintext
-      return stored
-    }
-  }
-
-  return null
+  const val = getSetting(`__safe_${key}`)
+  console.log(`[safeStore] GET __safe_${key} →`, val ? '(has value)' : 'null')
+  return val ?? null
 })
 
 ipcMain.handle(IPC.SAFE_STORE_SET, (_, key, value) => {
-  try {
-    if (safeStorage.isEncryptionAvailable()) {
-      const encrypted = safeStorage.encryptString(value)
-      setSetting(`__safe_${key}`, {
-        __encrypted: true,
-        data: encrypted.toString('base64'),
-      })
-    } else {
-      // Fallback: store plaintext (with console warning)
-      console.warn('[safeStore] encryption not available — storing plaintext')
-      setSetting(`__safe_${key}`, value)
-    }
-  } catch (err) {
-    console.error('[safeStore] set failed:', err.message)
-    // Fallback: store plaintext so the app still works
-    setSetting(`__safe_${key}`, value)
-  }
+  console.log(`[safeStore] SET __safe_${key}`)
+  setSetting(`__safe_${key}`, value)
 })
 
 ipcMain.handle(IPC.SAFE_STORE_DELETE, (_, key) => {

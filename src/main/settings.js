@@ -1,35 +1,23 @@
-import { app } from 'electron'
-import { join } from 'path'
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import Store from 'electron-store'
 
-let settingsPath
-let settings = {}
+let store
 
 export function setupSafeStorage() {
-  settingsPath = join(app.getPath('userData'), 'settings.json')
-  if (existsSync(settingsPath)) {
-    try {
-      settings = JSON.parse(readFileSync(settingsPath, 'utf-8'))
-    } catch {
-      settings = {}
-    }
-  }
-}
-
-function persist() {
-  writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8')
+  store = new Store({
+    name: 'netmigrate-settings',
+    encryptionKey: 'netmigrate-v1', // basic obfuscation for on-disk JSON
+  })
+  console.log('[settings] store path:', store.path)
 }
 
 export function getSetting(key) {
-  return settings[key] ?? null
+  return store?.get(key) ?? null
 }
 
 export function setSetting(key, value) {
-  settings[key] = value
-  persist()
+  store?.set(key, value)
 }
 
 export function deleteSetting(key) {
-  delete settings[key]
-  persist()
+  store?.delete(key)
 }
