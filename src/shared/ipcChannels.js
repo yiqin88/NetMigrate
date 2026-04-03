@@ -26,8 +26,19 @@ export const IPC = {
   SETTINGS_SET: 'settings:set',
   SETTINGS_DELETE: 'settings:delete',
 
-  // Secure key storage (Electron safeStorage)
+  // Secure key storage (electron-store)
   SAFE_STORE_GET: 'safeStore:get',
   SAFE_STORE_SET: 'safeStore:set',
   SAFE_STORE_DELETE: 'safeStore:delete',
+
+  // Claude API (main process)
+  CLAUDE_CONVERT: 'claude:convert',
+  CLAUDE_TEST_KEY: 'claude:test-key',
+
+  // Supabase (main process)
+  SUPABASE_GET_MIGRATIONS: 'supabase:get-migrations',
+  SUPABASE_SAVE_MIGRATION: 'supabase:save-migration',
+  SUPABASE_GET_STATS: 'supabase:get-stats',
+  SUPABASE_TEST_CONNECTION: 'supabase:test-connection',
+  SUPABASE_RESET: 'supabase:reset',
 }

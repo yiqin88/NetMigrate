@@ -24,11 +24,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (key) => ipcRenderer.invoke(IPC.SETTINGS_DELETE, key),
   },
 
-  // ── Secure storage (API keys) ─────────────────────────────────────────────
+  // ── Secure storage (API keys via electron-store) ──────────────────────────
   safeStore: {
     get: (key) => ipcRenderer.invoke(IPC.SAFE_STORE_GET, key),
     set: (key, value) => ipcRenderer.invoke(IPC.SAFE_STORE_SET, key, value),
     delete: (key) => ipcRenderer.invoke(IPC.SAFE_STORE_DELETE, key),
+  },
+
+  // ── Claude API (calls go through main process) ──────────��─────────────────
+  claude: {
+    convert: (payload) => ipcRenderer.invoke(IPC.CLAUDE_CONVERT, payload),
+    testKey: (apiKey) => ipcRenderer.invoke(IPC.CLAUDE_TEST_KEY, apiKey),
+  },
+
+  // ── Supabase (calls go through main process) ─────────────────────────────
+  supabase: {
+    getRecentMigrations: (payload) => ipcRenderer.invoke(IPC.SUPABASE_GET_MIGRATIONS, payload),
+    saveMigration: (record) => ipcRenderer.invoke(IPC.SUPABASE_SAVE_MIGRATION, record),
+    getStats: () => ipcRenderer.invoke(IPC.SUPABASE_GET_STATS),
+    testConnection: () => ipcRenderer.invoke(IPC.SUPABASE_TEST_CONNECTION),
+    reset: () => ipcRenderer.invoke(IPC.SUPABASE_RESET),
   },
 
   // ── Auto-updater ──────────────────────────────────────────────────────────

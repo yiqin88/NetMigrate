@@ -4,6 +4,11 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupUpdater } from './updater'
 import { setupSafeStorage, getSetting, setSetting, deleteSetting } from './settings'
 import { IPC } from '../shared/ipcChannels'
+import { convertConfig, testApiKey } from './api/claude'
+import {
+  getRecentMigrations, saveMigration, getMigrationStats,
+  testConnection as testSupabaseConnection, resetClient as resetSupabaseClient,
+} from './api/supabase'
 
 let mainWindow
 
@@ -147,4 +152,40 @@ ipcMain.handle(IPC.SAFE_STORE_SET, (_, key, value) => {
 
 ipcMain.handle(IPC.SAFE_STORE_DELETE, (_, key) => {
   deleteSetting(`__safe_${key}`)
+})
+
+// ── IPC: Claude API (main process) ────────────────────────────────────────────
+
+ipcMain.handle(IPC.CLAUDE_CONVERT, async (_, payload) => {
+  try {
+    return await convertConfig(payload)
+  } catch (err) {
+    throw new Error(err.message)
+  }
+})
+
+ipcMain.handle(IPC.CLAUDE_TEST_KEY, async (_, apiKey) => {
+  return await testApiKey(apiKey)
+})
+
+// ── IPC: Supabase (main process) ──────────────────────────────────────────────
+
+ipcMain.handle(IPC.SUPABASE_GET_MIGRATIONS, async (_, payload) => {
+  return await getRecentMigrations(payload)
+})
+
+ipcMain.handle(IPC.SUPABASE_SAVE_MIGRATION, async (_, record) => {
+  return await saveMigration(record)
+})
+
+ipcMain.handle(IPC.SUPABASE_GET_STATS, async () => {
+  return await getMigrationStats()
+})
+
+ipcMain.handle(IPC.SUPABASE_TEST_CONNECTION, async () => {
+  return await testSupabaseConnection()
+})
+
+ipcMain.handle(IPC.SUPABASE_RESET, () => {
+  resetSupabaseClient()
 })
