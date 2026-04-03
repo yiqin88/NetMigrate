@@ -161,9 +161,12 @@ ipcMain.handle(IPC.SAFE_STORE_DELETE, (_, key) => {
 
 // ── IPC: Claude API (main process) ────────────────────────────────────────────
 
-ipcMain.handle(IPC.CLAUDE_CONVERT, async (_, payload) => {
+ipcMain.handle(IPC.CLAUDE_CONVERT, async (event, payload) => {
   try {
-    return await convertConfig(payload)
+    return await convertConfig(payload, (progress) => {
+      // Send streaming progress to renderer
+      event.sender.send(IPC.CLAUDE_CONVERT_PROGRESS, progress)
+    })
   } catch (err) {
     throw new Error(err.message)
   }

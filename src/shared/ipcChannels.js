@@ -33,6 +33,7 @@ export const IPC = {
 
   // Claude API (main process)
   CLAUDE_CONVERT: 'claude:convert',
+  CLAUDE_CONVERT_PROGRESS: 'claude:convert-progress',
   CLAUDE_TEST_KEY: 'claude:test-key',
 
   // Supabase (main process)

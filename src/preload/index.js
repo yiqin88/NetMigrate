@@ -35,6 +35,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   claude: {
     convert: (payload) => ipcRenderer.invoke(IPC.CLAUDE_CONVERT, payload),
     testKey: (apiKey) => ipcRenderer.invoke(IPC.CLAUDE_TEST_KEY, apiKey),
+    onConvertProgress: (cb) => {
+      const handler = (_, data) => cb(data)
+      ipcRenderer.on(IPC.CLAUDE_CONVERT_PROGRESS, handler)
+      return () => ipcRenderer.removeListener(IPC.CLAUDE_CONVERT_PROGRESS, handler)
+    },
   },
 
   // ── Supabase (calls go through main process) ─────────────────────────────

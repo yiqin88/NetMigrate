@@ -30,7 +30,7 @@ export default function MigratePage() {
   const originalConvertedRef = useRef('')
 
   const {
-    status: convStatus, error: convError, progressMessage, elapsed,
+    status: convStatus, error: convError, progressMessage, elapsed, streamChars,
     convert, reset: resetConv,
   } = useConversion()
 
@@ -144,6 +144,7 @@ export default function MigratePage() {
             convError={convError}
             progressMessage={progressMessage}
             elapsed={elapsed}
+            streamChars={streamChars}
             vendorPair={vendorPair}
             corrections={corrections}
             onConvertedChange={handleConvertedChange}
@@ -172,7 +173,7 @@ export default function MigratePage() {
 
 function ConvertStep({
   sourceConfig, convertedConfig, conversionResult,
-  convStatus, convError, progressMessage, elapsed, vendorPair, corrections,
+  convStatus, convError, progressMessage, elapsed, streamChars, vendorPair, corrections,
   onConvertedChange, onRetry, onBack, onContinue,
 }) {
   if (convStatus === 'idle' || convStatus === 'loading') {
@@ -184,10 +185,20 @@ function ConvertStep({
           <p className="text-xs text-accent-blue animate-fade-in" key={progressMessage}>
             {progressMessage || 'Preparing conversion…'}
           </p>
+          {streamChars > 0 && (
+            <div className="w-48 mx-auto">
+              <div className="h-1 bg-surface-4 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-accent-blue rounded-full transition-all duration-300"
+                  style={{ width: `${Math.min((streamChars / 5000) * 100, 95)}%` }}
+                />
+              </div>
+            </div>
+          )}
           {elapsed > 0 && (
             <p className="text-xs text-text-muted">
               {elapsed}s elapsed
-              {elapsed >= 45 && ' — almost there…'}
+              {elapsed >= 90 && ' — almost there…'}
             </p>
           )}
         </div>

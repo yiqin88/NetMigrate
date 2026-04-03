@@ -1,12 +1,12 @@
 // Main-process Claude API service — all Anthropic API calls go through here
-// Uses Node.js https module for maximum compatibility
+// Uses Node.js https module with SSE streaming for real-time progress
 
 import https from 'https'
 import { getSetting } from '../settings'
 
 const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 8192
-const TIMEOUT_MS = 60_000
+const TIMEOUT_MS = 120_000
 const MAX_CONFIG_CHARS = 200_000
 const API_HOST = 'api.anthropic.com'
 const API_PATH = '/v1/messages'
@@ -20,17 +20,11 @@ function maskKey(key) {
   return `${key.slice(0, 6)}…${key.slice(-4)}`
 }
 
-/**
- * Make an HTTPS POST request to the Anthropic API using Node's https module.
- * Returns a Promise that resolves to { status, body }.
- */
-function httpsPost(apiKey, bodyObj, timeoutMs = TIMEOUT_MS) {
+// ── Non-streaming POST (for testApiKey) ───────────────────────────────────────
+
+function httpsPost(apiKey, bodyObj, timeoutMs = 15_000) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify(bodyObj)
-
-    console.log(`[claude] HTTPS POST https://${API_HOST}${API_PATH}`)
-    console.log(`[claude] Headers: x-api-key=${maskKey(apiKey)}, anthropic-version=2023-06-01`)
-    console.log(`[claude] Payload size: ${payload.length} bytes`)
 
     const options = {
       hostname: API_HOST,
@@ -51,32 +45,131 @@ function httpsPost(apiKey, bodyObj, timeoutMs = TIMEOUT_MS) {
       res.on('data', (chunk) => chunks.push(chunk))
       res.on('end', () => {
         const raw = Buffer.concat(chunks).toString('utf-8')
-        console.log(`[claude] Response status: ${res.statusCode}`)
-        console.log(`[claude] Response size: ${raw.length} bytes`)
         try {
-          const body = JSON.parse(raw)
-          resolve({ status: res.statusCode, body })
+          resolve({ status: res.statusCode, body: JSON.parse(raw) })
         } catch {
-          console.error('[claude] Failed to parse response JSON, raw:', raw.slice(0, 500))
           reject(new Error(`Invalid JSON response (status ${res.statusCode})`))
         }
       })
     })
 
+    req.on('timeout', () => { req.destroy(); reject(new Error('Request timed out.')) })
+    req.on('error', (err) => reject(new Error(`Network error: ${err.message} (${err.code ?? 'unknown'})`)))
+    req.write(payload)
+    req.end()
+  })
+}
+
+// ── Streaming POST (for convertConfig) ────────────────────────────────────��───
+
+/**
+ * Make a streaming HTTPS POST to the Anthropic API.
+ * Parses SSE events and calls onDelta(text) for each text chunk.
+ * Returns the full accumulated text when complete.
+ */
+function httpsPostStream(apiKey, bodyObj, onDelta, timeoutMs = TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({ ...bodyObj, stream: true })
+
+    console.log(`[claude] Streaming POST https://${API_HOST}${API_PATH}`)
+    console.log(`[claude] Key: ${maskKey(apiKey)}, payload: ${payload.length} bytes`)
+
+    const options = {
+      hostname: API_HOST,
+      port: 443,
+      path: API_PATH,
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+        'content-length': Buffer.byteLength(payload),
+      },
+      timeout: timeoutMs,
+    }
+
+    const req = https.request(options, (res) => {
+      console.log(`[claude] Stream response status: ${res.statusCode}`)
+
+      // Non-200: collect full body and reject
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        const chunks = []
+        res.on('data', (c) => chunks.push(c))
+        res.on('end', () => {
+          const raw = Buffer.concat(chunks).toString('utf-8')
+          let msg = `API error ${res.statusCode}`
+          try {
+            const body = JSON.parse(raw)
+            msg = body?.error?.message ?? msg
+          } catch { /* use default */ }
+          if (res.statusCode === 401) msg = 'Invalid API key. Check Settings.'
+          else if (res.statusCode === 429) msg = 'Rate limited. Wait a moment and try again.'
+          else if (res.statusCode === 529) msg = 'Anthropic API overloaded. Try again shortly.'
+          reject(new Error(msg))
+        })
+        return
+      }
+
+      // 200 OK — parse SSE stream
+      let fullText = ''
+      let buffer = ''
+
+      res.setEncoding('utf-8')
+      res.on('data', (chunk) => {
+        buffer += chunk
+        // Process complete SSE events (delimited by double newlines)
+        const events = buffer.split('\n\n')
+        buffer = events.pop() // keep incomplete event in buffer
+
+        for (const event of events) {
+          const lines = event.split('\n')
+          let eventType = ''
+          let dataStr = ''
+
+          for (const line of lines) {
+            if (line.startsWith('event: ')) eventType = line.slice(7)
+            else if (line.startsWith('data: ')) dataStr = line.slice(6)
+          }
+
+          if (eventType === 'content_block_delta' && dataStr) {
+            try {
+              const data = JSON.parse(dataStr)
+              if (data.delta?.type === 'text_delta' && data.delta.text) {
+                fullText += data.delta.text
+                onDelta(data.delta.text, fullText.length)
+              }
+            } catch { /* skip malformed event */ }
+          }
+
+          if (eventType === 'error' && dataStr) {
+            try {
+              const data = JSON.parse(dataStr)
+              reject(new Error(data.error?.message ?? 'Stream error'))
+              return
+            } catch { /* skip */ }
+          }
+        }
+      })
+
+      res.on('end', () => {
+        console.log(`[claude] Stream complete — ${fullText.length} chars`)
+        resolve(fullText)
+      })
+
+      res.on('error', (err) => {
+        reject(new Error(`Stream error: ${err.message}`))
+      })
+    })
+
     req.on('timeout', () => {
-      console.error(`[claude] Request timed out after ${timeoutMs}ms`)
+      console.error(`[claude] Stream timed out after ${timeoutMs}ms`)
       req.destroy()
       reject(new Error(`Request timed out after ${timeoutMs / 1000} seconds.`))
     })
 
     req.on('error', (err) => {
-      console.error('[claude] Request error:', {
-        message: err.message,
-        code: err.code,
-        errno: err.errno,
-        syscall: err.syscall,
-      })
-      reject(new Error(`Network error: ${err.message} (code: ${err.code ?? 'unknown'})`))
+      console.error('[claude] Request error:', err.message, err.code)
+      reject(new Error(`Network error: ${err.message} (${err.code ?? 'unknown'})`))
     })
 
     req.write(payload)
@@ -84,12 +177,10 @@ function httpsPost(apiKey, bodyObj, timeoutMs = TIMEOUT_MS) {
   })
 }
 
-/**
- * Validate an API key with a minimal API call.
- */
-export async function testApiKey(apiKey) {
-  console.log('[claude] testApiKey called, key:', maskKey(apiKey))
+// ── Public API ────────────────────────────────────────────────────────────────
 
+export async function testApiKey(apiKey) {
+  console.log('[claude] testApiKey, key:', maskKey(apiKey))
   if (!apiKey || !apiKey.startsWith('sk-')) {
     return { valid: false, error: 'API key must start with "sk-"' }
   }
@@ -99,14 +190,11 @@ export async function testApiKey(apiKey) {
       model: 'claude-haiku-4-5-20251001',
       max_tokens: 4,
       messages: [{ role: 'user', content: 'Hi' }],
-    }, 15_000)
-
-    console.log('[claude] testApiKey response status:', status)
-
+    })
+    console.log('[claude] testApiKey status:', status)
     if (status >= 200 && status < 300) return { valid: true }
     if (status === 401) return { valid: false, error: 'Invalid API key' }
     if (status === 403) return { valid: false, error: 'API key lacks permissions' }
-
     return { valid: false, error: body?.error?.message ?? `API error ${status}` }
   } catch (err) {
     console.error('[claude] testApiKey error:', err.message)
@@ -115,11 +203,12 @@ export async function testApiKey(apiKey) {
 }
 
 /**
- * Convert a network config using Claude.
+ * Convert a config using Claude with streaming.
+ * @param {Function} onProgress - called with { chars, text } as response streams in
  */
-export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, examples = [] }) {
+export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, examples = [] }, onProgress) {
   const apiKey = getApiKey()
-  console.log('[claude] convertConfig — API key:', maskKey(apiKey))
+  console.log('[claude] convertConfig — key:', maskKey(apiKey), 'config:', sourceConfig.length, 'chars')
   if (!apiKey) throw new Error('Anthropic API key not configured. Go to Settings to add it.')
 
   if (sourceConfig.length > MAX_CONFIG_CHARS) {
@@ -132,30 +221,24 @@ export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, 
   const systemPrompt = buildSystemPrompt(sourceVendor, targetVendor)
   const userPrompt = buildUserPrompt(sourceConfig, sourceVendor, targetVendor, examples)
 
-  console.log('[claude] Converting — config:', sourceConfig.length, 'chars, examples:', examples.length)
+  const fullText = await httpsPostStream(
+    apiKey,
+    {
+      model: MODEL,
+      max_tokens: MAX_TOKENS,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    },
+    (deltaText, totalChars) => {
+      if (onProgress) onProgress({ chars: totalChars })
+    }
+  )
 
-  const { status, body } = await httpsPost(apiKey, {
-    model: MODEL,
-    max_tokens: MAX_TOKENS,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userPrompt }],
-  })
-
-  if (status < 200 || status >= 300) {
-    let errorMessage = `API error ${status}`
-    if (body?.error?.message) errorMessage = body.error.message
-    if (status === 401) errorMessage = 'Invalid API key. Check your Anthropic API key in Settings.'
-    else if (status === 429) errorMessage = 'Rate limited — too many requests. Wait a moment and try again.'
-    else if (status === 529) errorMessage = 'Anthropic API is overloaded. Try again in a few seconds.'
-    throw new Error(errorMessage)
-  }
-
-  const text = body.content?.[0]?.text ?? ''
-  console.log('[claude] Response text length:', text.length)
-  if (!text) throw new Error('Claude returned an empty response. Try again.')
-
-  return parseConversionResponse(text)
+  if (!fullText) throw new Error('Claude returned an empty response. Try again.')
+  return parseConversionResponse(fullText)
 }
+
+// ── Prompt builders ───────────────────────────────────────────────────────────
 
 function buildSystemPrompt(sourceVendor, targetVendor) {
   return `You are an expert network engineer specializing in migrating device configurations between vendors.
