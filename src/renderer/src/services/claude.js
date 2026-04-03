@@ -1,38 +1,92 @@
 // Claude API service for config conversion
 // API key is retrieved from Electron safeStorage at call time
 
-const MODEL = 'claude-opus-4-6'
+const MODEL = 'claude-sonnet-4-6'
 const MAX_TOKENS = 8192
+const TIMEOUT_MS = 60_000
+const MAX_CONFIG_CHARS = 200_000 // ~200 KB — guard against huge configs
 
 export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, examples = [] }) {
   const apiKey = await window.electronAPI?.safeStore.get('anthropic_api_key')
   if (!apiKey) throw new Error('Anthropic API key not configured. Go to Settings to add it.')
 
+  // Guard: reject excessively large configs before sending
+  if (sourceConfig.length > MAX_CONFIG_CHARS) {
+    throw new Error(
+      `Config is too large (${(sourceConfig.length / 1000).toFixed(0)}K chars). ` +
+      `Maximum supported is ${MAX_CONFIG_CHARS / 1000}K characters. ` +
+      `Try splitting the config into smaller sections.`
+    )
+  }
+
   const systemPrompt = buildSystemPrompt(sourceVendor, targetVendor)
   const userPrompt = buildUserPrompt(sourceConfig, sourceVendor, targetVendor, examples)
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: MAX_TOKENS,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
-  })
+  // Abort controller for 60-second timeout
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS)
+
+  let response
+  try {
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      signal: controller.signal,
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: MAX_TOKENS,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }],
+      }),
+    })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    if (err.name === 'AbortError') {
+      throw new Error(
+        'Conversion timed out after 60 seconds. The config may be too large, ' +
+        'or the API is experiencing high load. Try again or reduce the config size.'
+      )
+    }
+    // Network error
+    throw new Error(`Network error: ${err.message}. Check your internet connection.`)
+  }
+  clearTimeout(timeoutId)
 
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}))
-    throw new Error(err?.error?.message ?? `API error ${response.status}`)
+    let errorMessage = `API error ${response.status}`
+    try {
+      const body = await response.json()
+      errorMessage = body?.error?.message ?? errorMessage
+
+      if (response.status === 401) {
+        errorMessage = 'Invalid API key. Check your Anthropic API key in Settings.'
+      } else if (response.status === 429) {
+        errorMessage = 'Rate limited — too many requests. Wait a moment and try again.'
+      } else if (response.status === 529) {
+        errorMessage = 'Anthropic API is overloaded. Try again in a few seconds.'
+      }
+    } catch {
+      // Couldn't parse error body — use status-based message
+    }
+    throw new Error(errorMessage)
   }
 
-  const result = await response.json()
+  let result
+  try {
+    result = await response.json()
+  } catch {
+    throw new Error('Failed to parse API response. The response was not valid JSON.')
+  }
+
   const text = result.content?.[0]?.text ?? ''
+  if (!text) {
+    throw new Error('Claude returned an empty response. Try again.')
+  }
+
   return parseConversionResponse(text)
 }
 

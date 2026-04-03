@@ -28,7 +28,10 @@ export default function MigratePage() {
   // Ref to original converted text — used to detect manual edits
   const originalConvertedRef = useRef('')
 
-  const { status: convStatus, error: convError, convert, reset: resetConv } = useConversion()
+  const {
+    status: convStatus, error: convError, progressMessage, elapsed,
+    convert, reset: resetConv,
+  } = useConversion()
 
   // ── Auto-trigger conversion when entering diff step ────────────────────────
   useEffect(() => {
@@ -134,6 +137,8 @@ export default function MigratePage() {
             conversionResult={conversionResult}
             convStatus={convStatus}
             convError={convError}
+            progressMessage={progressMessage}
+            elapsed={elapsed}
             vendorPair={vendorPair}
             corrections={corrections}
             onConvertedChange={handleConvertedChange}
@@ -162,19 +167,28 @@ export default function MigratePage() {
 
 function ConvertStep({
   sourceConfig, convertedConfig, conversionResult,
-  convStatus, convError, vendorPair, corrections,
+  convStatus, convError, progressMessage, elapsed, vendorPair, corrections,
   onConvertedChange, onRetry, onBack, onContinue,
 }) {
   if (convStatus === 'idle' || convStatus === 'loading') {
     return (
       <div className="flex flex-col items-center justify-center h-80 gap-5 animate-fade-in">
         <SpinnerIcon />
-        <div className="text-center">
+        <div className="text-center space-y-2">
           <p className="text-sm font-medium text-text-primary">Converting with Claude…</p>
-          <p className="text-xs text-text-muted mt-1">
-            Analysing {vendorPair?.source?.shortName} config and generating {vendorPair?.target?.shortName} syntax
+          <p className="text-xs text-accent-blue animate-fade-in" key={progressMessage}>
+            {progressMessage || 'Preparing conversion…'}
           </p>
+          {elapsed > 0 && (
+            <p className="text-xs text-text-muted">
+              {elapsed}s elapsed
+              {elapsed >= 45 && ' — almost there…'}
+            </p>
+          )}
         </div>
+        <button className="btn-ghost text-xs mt-2" onClick={onBack}>
+          Cancel
+        </button>
       </div>
     )
   }
