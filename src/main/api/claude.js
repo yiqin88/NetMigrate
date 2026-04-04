@@ -260,30 +260,31 @@ Category: ${category.toUpperCase()}
 Source platform: ${sourceProduct}
 Target platform: ${targetProduct}
 
-Return ONLY a JSON array of mappings. Each mapping:
-{ "source_command": "command with X as variable", "target_command": "equivalent with X as variable", "confidence": "high|medium|low", "notes": "brief explanation" }
+You MUST respond with ONLY valid JSON in this exact format (no markdown, no explanation, no code fences):
+{"mappings":[{"source_command":"command with X as variable","target_command":"equivalent","confidence":"high","notes":"explanation"}]}
 
-Use X, Y, Z as variable placeholders. Only return mappings for the ${category} category.
-If no mappings found for this category, return empty array [].`,
+Use X, Y, Z as variable placeholders. Only include ${category} commands.
+confidence must be one of: high, medium, low
+If no mappings found, return: {"mappings":[]}`,
       messages: [{
         role: 'user',
-        content: `SOURCE DOCS (${sourceProduct}):\n${sourceDoc.slice(0, 8000)}\n\n---\n\nTARGET DOCS (${targetProduct}):\n${targetDoc.slice(0, 8000)}`
+        content: `Extract ${category} command mappings from these docs.\n\nSOURCE (${sourceProduct}):\n${sourceDoc.slice(0, 8000)}\n\n---\n\nTARGET (${targetProduct}):\n${targetDoc.slice(0, 8000)}`
       }],
-    }, 60_000)
+    }, 90_000)
 
     if (status < 200 || status >= 300) {
-      console.error(`[claude] analyseDocuments ${category} failed:`, status)
+      console.error(`[claude] analyseDocuments ${category} failed: status=${status}`, JSON.stringify(body?.error ?? body).slice(0, 500))
+      if (onProgress) onProgress({ category, status: 'error', error: `API ${status}` })
       return []
     }
 
     const text = body.content?.[0]?.text ?? ''
-    const jsonMatch = text.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) return []
+    console.log(`[claude] analyseDocuments ${category} raw response (${text.length} chars):`, text.slice(0, 300))
 
-    const mappings = JSON.parse(jsonMatch[0])
-    console.log(`[claude] ${category}: ${mappings.length} mappings found`)
+    const mappings = extractMappingsFromText(text)
+    console.log(`[claude] analyseDocuments ${category}: ${mappings.length} mappings extracted`)
     if (onProgress) onProgress({ category, status: 'done', count: mappings.length })
-    return Array.isArray(mappings) ? mappings : []
+    return mappings
   } catch (err) {
     console.error(`[claude] analyseDocuments ${category} error:`, err.message)
     if (onProgress) onProgress({ category, status: 'error', error: err.message })
@@ -311,39 +312,72 @@ Generate a complete mapping of ${category.toUpperCase()} CLI commands between:
 Source: ${sourceProduct}
 Target: ${targetProduct}
 
-Based on official CLI references and documentation for both platforms.
+You MUST respond with ONLY valid JSON in this exact format (no markdown, no code fences, no explanation before or after):
+{"mappings":[{"source_command":"command with X as variable","target_command":"equivalent","confidence":"high","notes":"explanation"}],"sources":["reference used"],"unmappable":["commands with no equivalent"]}
 
-Return ONLY a JSON object:
-{
-  "mappings": [
-    { "source_command": "command with X as variable", "target_command": "equivalent", "confidence": "high|medium|low", "notes": "explanation" }
-  ],
-  "sources": ["Reference document or URL used"],
-  "unmappable": ["Commands with no equivalent"]
-}
-
-Use X, Y, Z as variable placeholders. Focus ONLY on ${category} commands.
-Rate confidence: high = exact equivalent, medium = close equivalent with caveats, low = approximate or partial.`,
+Use X, Y, Z as variable placeholders for configurable values like VLAN IDs, IP addresses, interface numbers.
+Focus ONLY on ${category} commands. Be comprehensive — include all common commands for this category.
+confidence: high = exact equivalent exists, medium = close equivalent with caveats, low = approximate or partial match.`,
       messages: [{
         role: 'user',
-        content: `Generate all ${category} command mappings from ${sourceProduct} to ${targetProduct}. Be comprehensive — include all common and important commands for this category.`
+        content: `Generate all ${category} command mappings from ${sourceProduct} to ${targetProduct}. Include every common ${category} CLI command used in production configurations.`
       }],
-    }, 60_000)
+    }, 90_000)
 
     if (status < 200 || status >= 300) {
-      console.error(`[claude] analyseWebSearch ${category} failed:`, status)
+      console.error(`[claude] analyseWebSearch ${category} failed: status=${status}`, JSON.stringify(body?.error ?? body).slice(0, 500))
+      if (onProgress) onProgress({ category, status: 'error', error: `API ${status}` })
       return { mappings: [], sources: [], unmappable: [] }
     }
 
     const text = body.content?.[0]?.text ?? ''
-    const jsonMatch = text.match(/\{[\s\S]*\}/)
-    if (!jsonMatch) return { mappings: [], sources: [], unmappable: [] }
+    console.log(`[claude] analyseWebSearch ${category} raw response (${text.length} chars):`, text.slice(0, 500))
 
-    const result = JSON.parse(jsonMatch[0])
-    console.log(`[claude] ${category}: ${result.mappings?.length ?? 0} mappings, ${result.unmappable?.length ?? 0} unmappable`)
-    if (onProgress) onProgress({ category, status: 'done', count: result.mappings?.length ?? 0 })
+    // Try to parse the full response as JSON first
+    let result = { mappings: [], sources: [], unmappable: [] }
+    try {
+      // Strip markdown code fences if present
+      let jsonStr = text.trim()
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')
+      }
+
+      // Try parsing the whole thing
+      const parsed = JSON.parse(jsonStr)
+      if (parsed.mappings) {
+        result = parsed
+      } else if (Array.isArray(parsed)) {
+        result.mappings = parsed
+      }
+    } catch (e1) {
+      console.log(`[claude] ${category} full parse failed, trying regex extraction...`)
+      // Fallback: extract JSON object with regex
+      try {
+        // Find the outermost { ... } that contains "mappings"
+        const objMatch = text.match(/\{[^{}]*"mappings"\s*:\s*\[[\s\S]*?\]\s*(?:,[^{}]*)?\}/s)
+        if (objMatch) {
+          const parsed = JSON.parse(objMatch[0])
+          result = { mappings: parsed.mappings ?? [], sources: parsed.sources ?? [], unmappable: parsed.unmappable ?? [] }
+        } else {
+          // Try to find just an array
+          const arrMatch = text.match(/\[\s*\{[\s\S]*?\}\s*\]/)
+          if (arrMatch) {
+            result.mappings = JSON.parse(arrMatch[0])
+          } else {
+            console.error(`[claude] ${category} JSON extraction failed. Raw text:`, text.slice(0, 1000))
+          }
+        }
+      } catch (e2) {
+        console.error(`[claude] ${category} regex parse also failed:`, e2.message)
+        console.error(`[claude] ${category} raw text:`, text.slice(0, 1000))
+      }
+    }
+
+    const mappings = Array.isArray(result.mappings) ? result.mappings : []
+    console.log(`[claude] analyseWebSearch ${category}: ${mappings.length} mappings, ${(result.unmappable ?? []).length} unmappable`)
+    if (onProgress) onProgress({ category, status: 'done', count: mappings.length })
     return {
-      mappings: Array.isArray(result.mappings) ? result.mappings : [],
+      mappings,
       sources: Array.isArray(result.sources) ? result.sources : [],
       unmappable: Array.isArray(result.unmappable) ? result.unmappable : [],
     }
@@ -352,6 +386,43 @@ Rate confidence: high = exact equivalent, medium = close equivalent with caveats
     if (onProgress) onProgress({ category, status: 'error', error: err.message })
     return { mappings: [], sources: [], unmappable: [] }
   }
+}
+
+/**
+ * Extract mappings array from Claude response text with multiple fallback strategies.
+ */
+function extractMappingsFromText(text) {
+  // Strategy 1: Strip code fences, parse as JSON with "mappings" key
+  try {
+    let jsonStr = text.trim()
+    if (jsonStr.startsWith('```')) {
+      jsonStr = jsonStr.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '')
+    }
+    const parsed = JSON.parse(jsonStr)
+    if (parsed.mappings && Array.isArray(parsed.mappings)) return parsed.mappings
+    if (Array.isArray(parsed)) return parsed
+  } catch { /* continue */ }
+
+  // Strategy 2: Find JSON array in text
+  try {
+    const arrMatch = text.match(/\[\s*\{[\s\S]*?\}\s*\]/)
+    if (arrMatch) {
+      const arr = JSON.parse(arrMatch[0])
+      if (Array.isArray(arr)) return arr
+    }
+  } catch { /* continue */ }
+
+  // Strategy 3: Find object with mappings key
+  try {
+    const objMatch = text.match(/\{[^{}]*"mappings"\s*:\s*\[[\s\S]*?\]\s*(?:,[^{}]*)?\}/s)
+    if (objMatch) {
+      const obj = JSON.parse(objMatch[0])
+      if (Array.isArray(obj.mappings)) return obj.mappings
+    }
+  } catch { /* continue */ }
+
+  console.error('[claude] extractMappingsFromText failed. Raw:', text.slice(0, 500))
+  return []
 }
 
 export { CATEGORIES }
