@@ -3,6 +3,7 @@ import { testConnection, resetSupabaseClient } from '../services/supabase'
 import { testApiKey } from '../services/claude'
 import TrainingConfigs from '../components/TrainingConfigs/TrainingConfigs'
 import VendorManager from '../components/VendorManager/VendorManager'
+import KnowledgeBase from '../components/KnowledgeBase/KnowledgeBase'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
@@ -170,6 +171,9 @@ export default function SettingsPage() {
 
           {/* Vendor & product management */}
           <VendorManager />
+
+          {/* Knowledge base */}
+          <KnowledgeBase />
 
           {/* Training configs */}
           <TrainingConfigs />
