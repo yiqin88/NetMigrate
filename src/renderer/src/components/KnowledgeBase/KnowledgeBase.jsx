@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import DocAnalyser from './DocAnalyser'
+import WebAnalyser from './WebAnalyser'
 
 const CATEGORY_LABELS = {
   vlan: 'VLANs', interface: 'Interfaces', routing: 'Routing',
@@ -129,32 +131,51 @@ function Dashboard({ stats, loading }) {
   )
 }
 
-// ── Analyse tab (placeholder — real content in commits 3+4) ──────────────────
-
 function AnalyseTab({ onComplete }) {
+  const [method, setMethod] = useState(null) // null | 'docs' | 'web'
+
+  if (method === 'docs') return <DocAnalyser onComplete={onComplete} />
+  if (method === 'web') return <WebAnalyser onComplete={onComplete} />
+
   return (
     <div className="space-y-3">
       <p className="text-xs text-text-muted">
         Choose a method to populate the knowledge base with command mappings.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="card p-4 space-y-2">
-          <h3 className="text-sm font-semibold text-text-primary">Method 1: Upload Docs</h3>
+        <button className="card p-4 space-y-2 text-left hover:bg-surface-2 transition-colors" onClick={() => setMethod('docs')}>
+          <div className="flex items-center gap-2">
+            <DocIcon />
+            <h3 className="text-sm font-semibold text-text-primary">Upload Docs</h3>
+          </div>
           <p className="text-xs text-text-muted">
-            Upload source and target vendor CLI documentation (PDF/TXT). Claude analyses both and extracts command mappings.
+            Upload source and target vendor CLI documentation (PDF/TXT). Claude analyses both and extracts command mappings per category.
           </p>
-          <span className="badge-info text-[10px]">Coming in next update</span>
-        </div>
-        <div className="card p-4 space-y-2">
-          <h3 className="text-sm font-semibold text-text-primary">Method 2: Auto-Generate</h3>
+        </button>
+        <button className="card p-4 space-y-2 text-left hover:bg-surface-2 transition-colors" onClick={() => setMethod('web')}>
+          <div className="flex items-center gap-2">
+            <SearchIcon />
+            <h3 className="text-sm font-semibold text-text-primary">Auto-Generate</h3>
+          </div>
           <p className="text-xs text-text-muted">
-            Claude uses built-in knowledge of vendor CLIs to generate command mappings per category.
+            Claude uses built-in knowledge of vendor CLIs to generate comprehensive command mappings per category with confidence ratings.
           </p>
-          <span className="badge-info text-[10px]">Coming in next update</span>
-        </div>
+        </button>
       </div>
     </div>
   )
+}
+
+function DocIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-accent-blue">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
+  </svg>
+}
+
+function SearchIcon() {
+  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="text-accent-green">
+    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
 }
 
 // ── Manage tab (placeholder — real content in commit 5) ──────────────────────
