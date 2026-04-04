@@ -110,11 +110,12 @@ function StatChip({ label, value, color }) {
 // ── Upload form ───────────────────────────────────────────────────────────────
 
 function TrainingForm({ onSaved, onCancel }) {
-  const { allProducts, sourceGroups, targetGroups } = useVendors()
-  const srcProducts = sourceGroups.flatMap((g) => g.products)
-  const tgtProducts = targetGroups.flatMap((g) => g.products)
-  const [sourceVendor, setSourceVendor] = useState(srcProducts[0]?.id ?? '')
-  const [targetVendor, setTargetVendor] = useState(tgtProducts[0]?.id ?? '')
+  const { allProducts, allGroups } = useVendors()
+  const allProductsList = allGroups.flatMap((g) =>
+    g.products.map((idOrObj) => typeof idOrObj === 'string' ? allProducts[idOrObj] : idOrObj).filter(Boolean)
+  )
+  const [sourceVendor, setSourceVendor] = useState(allProductsList[0]?.id ?? '')
+  const [targetVendor, setTargetVendor] = useState(allProductsList[1]?.id ?? allProductsList[0]?.id ?? '')
   const [sourceConfig, setSourceConfig] = useState('')
   const [convertedConfig, setConvertedConfig] = useState('')
   const [description, setDescription] = useState('')
@@ -179,24 +180,12 @@ function TrainingForm({ onSaved, onCancel }) {
       <div className="flex gap-3">
         <div className="flex-1">
           <label className="block text-xs text-text-secondary mb-1">Source Product</label>
-          <select className="input text-xs" value={sourceVendor} onChange={(e) => setSourceVendor(e.target.value)}>
-            {sourceGroups.map((g) => {
-              const prods = g.products
-              if (!prods.length) return null
-              return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}</optgroup>
-            })}
-          </select>
+          <ProductSelect groups={allGroups} allProducts={allProducts} value={sourceVendor} onChange={setSourceVendor} />
         </div>
         <div className="flex items-end pb-2 text-text-muted">→</div>
         <div className="flex-1">
           <label className="block text-xs text-text-secondary mb-1">Target Product</label>
-          <select className="input text-xs" value={targetVendor} onChange={(e) => setTargetVendor(e.target.value)}>
-            {targetGroups.map((g) => {
-              const prods = g.products
-              if (!prods.length) return null
-              return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}</optgroup>
-            })}
-          </select>
+          <ProductSelect groups={allGroups} allProducts={allProducts} value={targetVendor} onChange={setTargetVendor} />
         </div>
       </div>
 
@@ -301,7 +290,7 @@ function TrainingList({ examples, loading, onDelete, onUpdate }) {
 }
 
 function TrainingCard({ example, onDelete, onUpdate }) {
-  const { allProducts } = useVendors()
+  const { allProducts, allGroups } = useVendors()
   const [expanded, setExpanded] = useState(false)
   const [editing, setEditing] = useState(false)
   const [editVendorSrc, setEditVendorSrc] = useState(example.source_vendor)
@@ -364,15 +353,11 @@ function TrainingCard({ example, onDelete, onUpdate }) {
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <label className="text-[10px] text-text-muted">Source</label>
-              <select className="input text-xs py-1" value={editVendorSrc} onChange={(e) => setEditVendorSrc(e.target.value)}>
-                {Object.values(allProducts).map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
-              </select>
+              <ProductSelect groups={allGroups} allProducts={allProducts} value={editVendorSrc} onChange={setEditVendorSrc} className="py-1" />
             </div>
             <div className="flex-1">
               <label className="text-[10px] text-text-muted">Target</label>
-              <select className="input text-xs py-1" value={editVendorTgt} onChange={(e) => setEditVendorTgt(e.target.value)}>
-                {Object.values(allProducts).map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
-              </select>
+              <ProductSelect groups={allGroups} allProducts={allProducts} value={editVendorTgt} onChange={setEditVendorTgt} className="py-1" />
             </div>
           </div>
           <input className="input text-xs py-1" placeholder="Description" value={editDesc} onChange={(e) => setEditDesc(e.target.value)} />
@@ -422,5 +407,26 @@ function Badge({ color, label }) {
       style={{ backgroundColor: color + '25', border: `1px solid ${color}40`, color }}>
       {label}
     </div>
+  )
+}
+
+// Reusable grouped product select dropdown
+function ProductSelect({ groups, allProducts, value, onChange, className = '' }) {
+  return (
+    <select className={`input text-xs ${className}`} value={value} onChange={(e) => onChange(e.target.value)}>
+      {groups.map((g) => {
+        const prods = g.products
+          .map((idOrObj) => typeof idOrObj === 'string' ? allProducts[idOrObj] : idOrObj)
+          .filter(Boolean)
+        if (!prods.length) return null
+        return (
+          <optgroup key={g.id} label={g.name}>
+            {prods.map((p) => (
+              <option key={p.id} value={p.id}>{p.fullName ?? p.name}</option>
+            ))}
+          </optgroup>
+        )
+      })}
+    </select>
   )
 }
