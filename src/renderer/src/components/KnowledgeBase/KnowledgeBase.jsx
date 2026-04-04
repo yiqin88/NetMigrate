@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import DocAnalyser from './DocAnalyser'
 import WebAnalyser from './WebAnalyser'
+import ManageTab from './ManageTab'
 
 const CATEGORY_LABELS = {
   vlan: 'VLANs', interface: 'Interfaces', routing: 'Routing',
@@ -178,17 +179,7 @@ function SearchIcon() {
   </svg>
 }
 
-// ── Manage tab (placeholder — real content in commit 5) ──────────────────────
-
-function ManageTab({ onUpdate }) {
-  return (
-    <div className="text-center py-6">
-      <p className="text-xs text-text-muted">
-        Knowledge base management (edit, delete, export CSV, import) will be available after adding mappings via the Analyse tab.
-      </p>
-    </div>
-  )
-}
+// ManageTab imported from ./ManageTab.jsx
 
 // ── Shared ────────────────────────────────────────────────────────────────────
 

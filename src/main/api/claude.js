@@ -401,7 +401,7 @@ Use X, Y, Z as variable placeholders. Only output the JSON array, no explanation
  * Convert a config using Claude with streaming.
  * @param {Function} onProgress - called with { chars, text } as response streams in
  */
-export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, examples = [] }, onProgress) {
+export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, examples = [], kbMappings = [] }, onProgress) {
   const apiKey = getApiKey()
   console.log('[claude] convertConfig — key:', maskKey(apiKey), 'config:', sourceConfig.length, 'chars')
   if (!apiKey) throw new Error('Anthropic API key not configured. Go to Settings to add it.')
@@ -414,7 +414,7 @@ export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, 
   }
 
   const systemPrompt = buildSystemPrompt(sourceVendor, targetVendor)
-  const userPrompt = buildUserPrompt(sourceConfig, sourceVendor, targetVendor, examples)
+  const userPrompt = buildUserPrompt(sourceConfig, sourceVendor, targetVendor, examples, kbMappings)
 
   const fullText = await httpsPostStream(
     apiKey,
@@ -471,8 +471,22 @@ Return your response as JSON with this exact structure:
 }`
 }
 
-function buildUserPrompt(sourceConfig, sourceVendor, targetVendor, examples) {
+function buildUserPrompt(sourceConfig, sourceVendor, targetVendor, examples, kbMappings = []) {
   let prompt = ''
+
+  // Knowledge base mappings (highest priority — human-verified)
+  if (kbMappings.length > 0) {
+    prompt += `## Authoritative Command Mappings (${kbMappings.length} verified)\n`
+    prompt += `Use these as authoritative reference — they take priority over general knowledge.\n\n`
+    prompt += `| Source Command | Target Command | Category |\n`
+    prompt += `|---|---|---|\n`
+    kbMappings.slice(0, 100).forEach((m) => {
+      prompt += `| ${m.source_command} | ${m.target_command} | ${m.category} |\n`
+    })
+    prompt += '\n---\n\n'
+  }
+
+  // Learning examples
   if (examples.length > 0) {
     prompt += `## Learning Examples (${examples.length} past approved migrations)\n\n`
     examples.slice(0, 10).forEach((ex, i) => {
@@ -482,6 +496,7 @@ function buildUserPrompt(sourceConfig, sourceVendor, targetVendor, examples) {
     })
     prompt += '---\n\n'
   }
+
   prompt += `## Config to Convert\nSource: ${sourceVendor.name}\nTarget: ${targetVendor.name}\n\n`
   prompt += `\`\`\`\n${sourceConfig}\n\`\`\``
   return prompt

@@ -80,10 +80,11 @@ export function useConversion() {
     listenForStreamProgress()
 
     try {
-      // Fetch learning examples + training examples with a 5-second timeout
+      // Fetch KB mappings + learning examples + training examples
       let examples = []
+      let kbMappings = []
       try {
-        console.log('[useConversion] Fetching examples…')
+        console.log('[useConversion] Fetching KB + examples…')
         setState((s) => ({ ...s, progressMessage: INITIAL_MESSAGES[0] }))
 
         const timeout = (p) => Promise.race([
@@ -91,7 +92,13 @@ export function useConversion() {
           new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 5000)),
         ])
 
-        const [migrations, training] = await Promise.all([
+        const [kb, migrations, training] = await Promise.all([
+          timeout(
+            window.electronAPI?.kb?.getForConversion?.({
+              sourceProduct: sourceVendor.id,
+              targetProduct: targetVendor.id,
+            }) ?? Promise.resolve([])
+          ).catch(() => []),
           timeout(getRecentMigrations({
             sourceVendor: sourceVendor.id,
             targetVendor: targetVendor.id,
@@ -106,9 +113,9 @@ export function useConversion() {
           ).catch(() => []),
         ])
 
-        // Training examples first (curated), then past migrations
+        kbMappings = kb
         examples = [...training, ...migrations]
-        console.log('[useConversion] Got', training.length, 'training +', migrations.length, 'migration examples')
+        console.log('[useConversion] Got', kb.length, 'KB mappings,', training.length, 'training,', migrations.length, 'migration examples')
       } catch (err) {
         console.warn('[useConversion] Examples failed (non-blocking):', err.message)
         examples = []
@@ -117,7 +124,7 @@ export function useConversion() {
       setState((s) => ({ ...s, progressMessage: INITIAL_MESSAGES[1] }))
 
       console.log('[useConversion] Calling convertConfig (streaming)…')
-      const result = await convertConfig({ sourceConfig, sourceVendor, targetVendor, examples })
+      const result = await convertConfig({ sourceConfig, sourceVendor, targetVendor, examples, kbMappings })
       console.log('[useConversion] Conversion success!')
 
       stopTimer()

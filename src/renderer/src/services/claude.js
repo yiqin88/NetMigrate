@@ -1,10 +1,10 @@
 // Renderer-side Claude service — thin wrapper over IPC to main process
 // All actual API calls happen in src/main/api/claude.js
 
-export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, examples = [] }) {
+export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, examples = [], kbMappings = [] }) {
   if (!window.electronAPI?.claude) throw new Error('App not ready — try again.')
-  console.log('[claude] convertConfig via IPC — config:', sourceConfig.length, 'chars')
-  return await window.electronAPI.claude.convert({ sourceConfig, sourceVendor, targetVendor, examples })
+  console.log('[claude] convertConfig via IPC — config:', sourceConfig.length, 'chars, kb:', kbMappings.length)
+  return await window.electronAPI.claude.convert({ sourceConfig, sourceVendor, targetVendor, examples, kbMappings })
 }
 
 export async function testApiKey(apiKey) {
