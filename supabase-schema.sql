@@ -196,6 +196,18 @@ DO $$ BEGIN
 END $$;
 
 
+-- ── 6. Schema updates — add device_type columns ────────────────────────────
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='command_knowledge_base' AND column_name='device_type') THEN
+    ALTER TABLE public.command_knowledge_base ADD COLUMN device_type text DEFAULT 'switch';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='custom_products' AND column_name='device_type') THEN
+    ALTER TABLE public.custom_products ADD COLUMN device_type text DEFAULT 'switch';
+  END IF;
+END $$;
+
+
 -- ── Verification ────────────────────────────────────────────────────────────
 -- Run these after the script to verify everything is correct:
 

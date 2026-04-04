@@ -1,14 +1,25 @@
 import { useState } from 'react'
 import { useVendors } from '../../hooks/useVendors'
+import { DEVICE_TYPES, isCrossDeviceType } from '../../constants/vendors'
 
 export default function VendorSelector({ onConfirm }) {
   const { allProducts, sourceGroups, targetGroups } = useVendors()
+  const [showAllTargets, setShowAllTargets] = useState(false)
   const [sourceId, setSourceId] = useState(null)
   const [targetId, setTargetId] = useState(null)
 
   const source = sourceId ? allProducts[sourceId] : null
   const target = targetId ? allProducts[targetId] : null
   const canConfirm = source && target
+  const crossType = source && target && isCrossDeviceType(source.deviceType, target.deviceType)
+
+  // Filter targets to same device type by default
+  const filteredTargetGroups = (!source || showAllTargets)
+    ? targetGroups
+    : targetGroups.map((g) => ({
+        ...g,
+        products: g.products.filter((p) => p.deviceType === source.deviceType),
+      })).filter((g) => g.products.length > 0)
 
   function handleConfirm() {
     onConfirm({ source, target })
@@ -55,15 +66,33 @@ export default function VendorSelector({ onConfirm }) {
               Select a source product first
             </div>
           ) : (
-            <ProductPicker
-              groups={targetGroups}
-              selectedId={targetId}
-              variant="target"
-              onSelect={setTargetId}
-            />
+            <>
+              <ProductPicker
+                groups={filteredTargetGroups}
+                selectedId={targetId}
+                variant="target"
+                onSelect={setTargetId}
+              />
+              {!showAllTargets && source && (
+                <button className="btn-ghost text-[10px] w-full" onClick={() => setShowAllTargets(true)}>
+                  Show all device types (currently filtering to {DEVICE_TYPES[source.deviceType]?.label ?? source.deviceType})
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {/* Cross device type warning */}
+      {crossType && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-yellow/10 border border-accent-yellow/25 text-xs text-accent-yellow">
+          <span>⚠️</span>
+          <span>
+            Cross device type migration — {source.fullName} is a <strong>{DEVICE_TYPES[source.deviceType]?.label}</strong>,
+            {' '}{target.fullName} is a <strong>{DEVICE_TYPES[target.deviceType]?.label}</strong>. This is unusual — please confirm.
+          </span>
+        </div>
+      )}
 
       {/* Confirm */}
       <div className="flex justify-end pt-1">
@@ -123,6 +152,7 @@ function VendorGroup({ group, selectedId, variant, onSelect }) {
               <div className="flex items-center justify-between">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
+                    <span className="text-xs" title={DEVICE_TYPES[product.deviceType]?.label}>{DEVICE_TYPES[product.deviceType]?.icon ?? ''}</span>
                     <span className="text-sm font-medium text-text-primary">{product.name}</span>
                     {selected && <CheckIcon color={variant === 'source' ? '#d29922' : '#3fb950'} />}
                   </div>

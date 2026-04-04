@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useVendors } from '../../hooks/useVendors'
+import { DEVICE_TYPES, isCrossDeviceType } from '../../constants/vendors'
 
 export default function TrainingConfigs() {
   const [examples, setExamples] = useState([])
@@ -188,6 +189,18 @@ function TrainingForm({ onSaved, onCancel }) {
           <ProductSelect groups={allGroups} allProducts={allProducts} value={targetVendor} onChange={setTargetVendor} />
         </div>
       </div>
+
+      {/* Cross device type warning */}
+      {allProducts[sourceVendor]?.deviceType && allProducts[targetVendor]?.deviceType &&
+        isCrossDeviceType(allProducts[sourceVendor].deviceType, allProducts[targetVendor].deviceType) && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-yellow/10 border border-accent-yellow/25 text-xs text-accent-yellow">
+          <span>⚠️</span>
+          <span>
+            Cross device type — {allProducts[sourceVendor]?.fullName} is a {DEVICE_TYPES[allProducts[sourceVendor]?.deviceType]?.label},
+            {' '}{allProducts[targetVendor]?.fullName} is a {DEVICE_TYPES[allProducts[targetVendor]?.deviceType]?.label}. This is unusual.
+          </span>
+        </div>
+      )}
 
       <div>
         <label className="block text-xs text-text-secondary mb-1">Description (optional)</label>

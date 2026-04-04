@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useVendors } from '../../hooks/useVendors'
+import { DEVICE_TYPES } from '../../constants/vendors'
 
 export default function VendorManager() {
   const { allGroups, allProducts, builtinVendorIds, builtinProductIds, refresh } = useVendors()
@@ -92,7 +93,8 @@ export default function VendorManager() {
                     <div key={p.id} className="flex items-center justify-between px-3 py-1.5 pl-8">
                       <div className="min-w-0">
                         <span className="text-xs text-text-primary">{p.fullName ?? p.name}</span>
-                        <span className="text-[10px] text-text-muted ml-2">{p.description}</span>
+                        <span className="text-[10px] ml-1">{DEVICE_TYPES[p.deviceType]?.icon ?? ''}</span>
+                        <span className="text-[10px] text-text-muted ml-1">{p.description}</span>
                         <span className="text-[10px] text-text-disabled ml-1">({p.role})</span>
                       </div>
                       {p.isCustom && (
@@ -158,6 +160,7 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
   const [fullName, setFullName] = useState('')
   const [description, setDescription] = useState('')
   const [role, setRole] = useState('both')
+  const [deviceType, setDeviceType] = useState('switch')
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -174,6 +177,7 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
         color,
         description: description.trim() || null,
         role,
+        device_type: deviceType,
       })
       onSaved()
     } catch (err) {
@@ -194,6 +198,11 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
           <option value="source">Source</option>
           <option value="target">Target</option>
           <option value="both">Both</option>
+        </select>
+        <select className="input text-xs w-28" value={deviceType} onChange={(e) => setDeviceType(e.target.value)}>
+          {Object.entries(DEVICE_TYPES).map(([k, v]) => (
+            <option key={k} value={k}>{v.icon} {v.label}</option>
+          ))}
         </select>
       </div>
       <div className="flex gap-1.5 justify-end">

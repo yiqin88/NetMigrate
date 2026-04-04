@@ -1,3 +1,33 @@
+// ── Device types ──────────────────────────────────────────────────────────────
+
+export const DEVICE_TYPES = {
+  switch: { label: 'Switch', icon: '🔀' },
+  firewall: { label: 'Firewall', icon: '🔒' },
+  'wireless-controller': { label: 'Wireless', icon: '📡' },
+  router: { label: 'Router', icon: '🌐' },
+}
+
+// ── Categories by device type combination ────────────────────────────────────
+
+export const CATEGORIES_BY_DEVICE_TYPE = {
+  'switch→switch': ['vlan', 'interface', 'routing', 'aaa', 'stp', 'lag', 'qos', 'lldp', 'other'],
+  'firewall→firewall': ['security-policy', 'nat', 'zones', 'vpn-ipsec', 'vpn-ssl', 'security-profiles', 'routing', 'aaa', 'ha', 'other'],
+  'wireless-controller→wireless-controller': ['ssid', 'rf-profile', 'aaa', 'vlan', 'qos', 'other'],
+  'router→router': ['interface', 'routing', 'aaa', 'qos', 'vpn-ipsec', 'other'],
+}
+
+// Default / fallback for cross-type or unknown combos
+const DEFAULT_CATEGORIES = ['vlan', 'interface', 'routing', 'security-policy', 'nat', 'aaa', 'stp', 'lag', 'qos', 'other']
+
+export function getCategoriesForPair(srcDeviceType, tgtDeviceType) {
+  const key = `${srcDeviceType}→${tgtDeviceType}`
+  return CATEGORIES_BY_DEVICE_TYPE[key] ?? DEFAULT_CATEGORIES
+}
+
+export function isCrossDeviceType(srcDeviceType, tgtDeviceType) {
+  return srcDeviceType && tgtDeviceType && srcDeviceType !== tgtDeviceType
+}
+
 // ── Products ──────────────────────────────────────────────────────────────────
 // Each product is a specific OS/platform that can be a source, target, or both.
 // The `id` is stored in Supabase and used for training example matching.
@@ -12,6 +42,7 @@ export const PRODUCTS = {
     vendorId: 'cisco',
     color: '#1ba0d7',
     description: 'Classic IOS (pre-XE) Catalyst switches',
+    deviceType: 'switch',
     role: 'source',
   },
   cisco_ios_xe: {
@@ -22,6 +53,7 @@ export const PRODUCTS = {
     vendorId: 'cisco',
     color: '#1ba0d7',
     description: 'Catalyst 9000, 3850 series',
+    deviceType: 'switch',
     role: 'both',
   },
   cisco_nxos: {
@@ -32,6 +64,7 @@ export const PRODUCTS = {
     vendorId: 'cisco',
     color: '#1ba0d7',
     description: 'Nexus datacenter switches',
+    deviceType: 'switch',
     role: 'both',
   },
   cisco_iosxr: {
@@ -42,6 +75,7 @@ export const PRODUCTS = {
     vendorId: 'cisco',
     color: '#1ba0d7',
     description: 'Service provider routers',
+    deviceType: 'router',
     role: 'source',
   },
   cisco_wlc: {
@@ -52,6 +86,7 @@ export const PRODUCTS = {
     vendorId: 'cisco',
     color: '#1ba0d7',
     description: 'Wireless LAN Controller',
+    deviceType: 'wireless-controller',
     role: 'source',
   },
 
@@ -64,6 +99,7 @@ export const PRODUCTS = {
     vendorId: 'huawei',
     color: '#e60012',
     description: 'S-series switches (VRP platform)',
+    deviceType: 'switch',
     role: 'source',
   },
   huawei_comware: {
@@ -74,6 +110,7 @@ export const PRODUCTS = {
     vendorId: 'huawei',
     color: '#e60012',
     description: 'HPE/H3C Comware based',
+    deviceType: 'switch',
     role: 'source',
   },
 
@@ -86,6 +123,7 @@ export const PRODUCTS = {
     vendorId: 'fortinet',
     color: '#ee3124',
     description: 'FortiSwitch managed switches',
+    deviceType: 'switch',
     role: 'both',
   },
   fortinet_fortigate: {
@@ -96,6 +134,7 @@ export const PRODUCTS = {
     vendorId: 'fortinet',
     color: '#ee3124',
     description: 'FortiGate firewall/router',
+    deviceType: 'firewall',
     role: 'source',
   },
 
@@ -108,6 +147,7 @@ export const PRODUCTS = {
     vendorId: 'paloalto',
     color: '#fa582d',
     description: 'PAN-OS firewalls',
+    deviceType: 'firewall',
     role: 'source',
   },
 
@@ -120,6 +160,7 @@ export const PRODUCTS = {
     vendorId: 'aruba',
     color: '#ff8300',
     description: '6000/8000 series CX switches',
+    deviceType: 'switch',
     role: 'target',
   },
   aruba_aos_switch: {
@@ -130,6 +171,7 @@ export const PRODUCTS = {
     vendorId: 'aruba',
     color: '#ff8300',
     description: 'ProCurve based — 2930/3810',
+    deviceType: 'switch',
     role: 'target',
   },
   aruba_comware: {
@@ -140,6 +182,7 @@ export const PRODUCTS = {
     vendorId: 'aruba',
     color: '#ff8300',
     description: 'HPE Comware — 5130/5940',
+    deviceType: 'switch',
     role: 'target',
   },
 }
@@ -229,6 +272,7 @@ export function mergeCustomData(customVendors = [], customProducts = []) {
       color: cp.color ?? '#888888',
       description: cp.description ?? '',
       role: cp.role ?? 'both',
+      deviceType: cp.device_type ?? 'switch',
       isCustom: true,
     }
   }

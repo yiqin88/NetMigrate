@@ -438,13 +438,15 @@ export async function convertConfig({ sourceConfig, sourceVendor, targetVendor, 
 function buildSystemPrompt(sourceVendor, targetVendor) {
   const srcLabel = sourceVendor.fullName ?? sourceVendor.name
   const srcDesc = sourceVendor.description ?? ''
+  const srcType = sourceVendor.deviceType ?? 'switch'
   const tgtLabel = targetVendor.fullName ?? targetVendor.name
   const tgtDesc = targetVendor.description ?? ''
+  const tgtType = targetVendor.deviceType ?? 'switch'
 
   return `You are an expert network engineer specializing in migrating device configurations between vendors.
 
-Source platform: ${srcLabel} (${srcDesc})
-Target platform: ${tgtLabel} (${tgtDesc})
+Source platform: ${srcLabel} (${srcDesc}) — Device type: ${srcType}
+Target platform: ${tgtLabel} (${tgtDesc}) — Device type: ${tgtType}
 
 Your task is to convert ${srcLabel} configuration syntax to equivalent ${tgtLabel} syntax.
 
