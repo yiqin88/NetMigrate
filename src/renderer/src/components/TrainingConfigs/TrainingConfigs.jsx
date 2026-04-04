@@ -435,7 +435,7 @@ function ProductSelect({ groups, allProducts, value, onChange, className = '' })
         return (
           <optgroup key={g.id} label={g.name}>
             {prods.map((p) => (
-              <option key={p.id} value={p.id}>{p.fullName ?? p.name}</option>
+              <option key={p.id} value={p.id}>{DEVICE_TYPES[p.deviceType]?.icon ?? ''} {p.fullName ?? p.name}</option>
             ))}
           </optgroup>
         )

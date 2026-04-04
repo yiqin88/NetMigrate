@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useVendors } from '../../hooks/useVendors'
+import { getCategoriesForPair, isCrossDeviceType, DEVICE_TYPES } from '../../constants/vendors'
 import ValidationTable from './ValidationTable'
-
-const CATEGORIES = ['vlan', 'interface', 'routing', 'aaa', 'stp', 'lag', 'other']
 
 export default function WebAnalyser({ onComplete }) {
   const { allProducts, allGroups } = useVendors()
@@ -15,6 +14,12 @@ export default function WebAnalyser({ onComplete }) {
   const [sources, setSources] = useState([])
   const [unmappable, setUnmappable] = useState([])
   const [saving, setSaving] = useState(false)
+
+  // Dynamic categories based on device types
+  const srcType = allProducts[sourceProduct]?.deviceType ?? 'switch'
+  const tgtType = allProducts[targetProduct]?.deviceType ?? 'switch'
+  const categories = useMemo(() => getCategoriesForPair(srcType, tgtType), [srcType, tgtType])
+  const crossType = isCrossDeviceType(srcType, tgtType)
 
   useEffect(() => {
     const cleanup = window.electronAPI?.kb?.onWebProgress?.((p) => {
@@ -36,13 +41,14 @@ export default function WebAnalyser({ onComplete }) {
       const data = await window.electronAPI.kb.analyseWeb({
         sourceProduct: srcProd?.fullName ?? sourceProduct,
         targetProduct: tgtProd?.fullName ?? targetProduct,
+        categories,
       })
 
       const rows = []
       const allSources = []
       const allUnmappable = []
 
-      for (const cat of CATEGORIES) {
+      for (const cat of categories) {
         const result = data[cat] ?? { mappings: [], sources: [], unmappable: [] }
         for (const m of result.mappings ?? []) {
           rows.push({
@@ -110,7 +116,7 @@ export default function WebAnalyser({ onComplete }) {
           </div>
         )}
 
-        <ValidationTable rows={results} onChange={setResults} onSave={handleSave} saving={saving} />
+        <ValidationTable rows={results} onChange={setResults} onSave={handleSave} saving={saving} categories={categories} />
 
         {unmappable.length > 0 && (
           <div className="card p-3 space-y-1.5">
@@ -147,10 +153,23 @@ export default function WebAnalyser({ onComplete }) {
         </div>
       </div>
 
+      {/* Device type info + cross-type warning */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] text-text-muted">Categories ({categories.length}):</span>
+        {categories.map((c) => (
+          <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-4 text-text-secondary">{c}</span>
+        ))}
+      </div>
+      {crossType && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-yellow/10 border border-accent-yellow/25 text-xs text-accent-yellow">
+          ⚠️ Cross device type: {DEVICE_TYPES[srcType]?.label} → {DEVICE_TYPES[tgtType]?.label}. Using combined categories.
+        </div>
+      )}
+
       {/* Progress */}
       {analysing && (
         <div className="space-y-1">
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const p = progress[cat]
             return (
               <div key={cat} className="flex items-center gap-2 text-xs">
@@ -184,7 +203,7 @@ function ProductSelect({ groups, allProducts, value, onChange }) {
       {groups.map((g) => {
         const prods = g.products.map((id) => typeof id === 'string' ? allProducts[id] : id).filter(Boolean)
         if (!prods.length) return null
-        return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{p.fullName ?? p.name}</option>)}</optgroup>
+        return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{DEVICE_TYPES[p.deviceType]?.icon ?? ''} {p.fullName ?? p.name}</option>)}</optgroup>
       })}
     </select>
   )

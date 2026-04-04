@@ -265,9 +265,10 @@ ipcMain.handle(IPC.KB_EXPORT_CSV, async (_, payload) => {
   return exportKBAsCSV(entries)
 })
 
-ipcMain.handle(IPC.KB_ANALYSE_DOCS, async (event, { sourceDoc, targetDoc, sourceProduct, targetProduct }) => {
+ipcMain.handle(IPC.KB_ANALYSE_DOCS, async (event, { sourceDoc, targetDoc, sourceProduct, targetProduct, categories }) => {
+  const cats = categories ?? CATEGORIES
   const results = {}
-  for (const cat of CATEGORIES) {
+  for (const cat of cats) {
     const mappings = await analyseDocuments(
       { sourceDoc, targetDoc, sourceProduct, targetProduct, category: cat },
       (progress) => event.sender.send(IPC.KB_ANALYSE_DOCS_PROGRESS, progress)
@@ -277,9 +278,10 @@ ipcMain.handle(IPC.KB_ANALYSE_DOCS, async (event, { sourceDoc, targetDoc, source
   return results
 })
 
-ipcMain.handle(IPC.KB_ANALYSE_WEB, async (event, { sourceProduct, targetProduct }) => {
+ipcMain.handle(IPC.KB_ANALYSE_WEB, async (event, { sourceProduct, targetProduct, categories }) => {
+  const cats = categories ?? CATEGORIES
   const results = {}
-  for (const cat of CATEGORIES) {
+  for (const cat of cats) {
     const result = await analyseWebSearch(
       { sourceProduct, targetProduct, category: cat },
       (progress) => event.sender.send(IPC.KB_ANALYSE_WEB_PROGRESS, progress)

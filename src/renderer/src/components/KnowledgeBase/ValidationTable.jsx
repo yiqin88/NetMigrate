@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
 
-const CATEGORIES = ['vlan', 'interface', 'routing', 'aaa', 'stp', 'lag', 'other']
+const DEFAULT_CATEGORIES = ['vlan', 'interface', 'routing', 'aaa', 'stp', 'lag', 'other']
 const CONFIDENCES = ['high', 'medium', 'low']
 const STATUSES = ['approved', 'needs_review', 'rejected']
 
@@ -11,8 +11,10 @@ const STATUSES = ['approved', 'needs_review', 'rejected']
  *   onChange: (updatedRows) => void
  *   onSave: (approvedRows) => void
  *   saving: boolean
+ *   categories: string[] (optional — defaults to switch categories)
  */
-export default function ValidationTable({ rows, onChange, onSave, saving }) {
+export default function ValidationTable({ rows, onChange, onSave, saving, categories }) {
+  const CATEGORIES = categories ?? DEFAULT_CATEGORIES
   const [filterCat, setFilterCat] = useState('')
   const [filterConf, setFilterConf] = useState('')
   const [filterStatus, setFilterStatus] = useState('')

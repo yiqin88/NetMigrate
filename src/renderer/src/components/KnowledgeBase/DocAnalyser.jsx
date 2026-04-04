@@ -1,8 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useVendors } from '../../hooks/useVendors'
+import { getCategoriesForPair, isCrossDeviceType, DEVICE_TYPES } from '../../constants/vendors'
 import ValidationTable from './ValidationTable'
-
-const CATEGORIES = ['vlan', 'interface', 'routing', 'aaa', 'stp', 'lag', 'other']
 
 export default function DocAnalyser({ onComplete }) {
   const { allProducts, allGroups } = useVendors()
@@ -19,6 +18,12 @@ export default function DocAnalyser({ onComplete }) {
   const [saving, setSaving] = useState(false)
   const srcRef = useRef(null)
   const tgtRef = useRef(null)
+
+  // Dynamic categories based on device types
+  const srcType = allProducts[sourceProduct]?.deviceType ?? 'switch'
+  const tgtType = allProducts[targetProduct]?.deviceType ?? 'switch'
+  const categories = useMemo(() => getCategoriesForPair(srcType, tgtType), [srcType, tgtType])
+  const crossType = isCrossDeviceType(srcType, tgtType)
 
   // Listen for progress events
   useEffect(() => {
@@ -49,11 +54,12 @@ export default function DocAnalyser({ onComplete }) {
         targetDoc: targetDoc,
         sourceProduct: srcProd?.fullName ?? sourceProduct,
         targetProduct: tgtProd?.fullName ?? targetProduct,
+        categories,
       })
 
       // Flatten results into validation rows
       const rows = []
-      for (const cat of CATEGORIES) {
+      for (const cat of categories) {
         const mappings = data[cat] ?? []
         for (const m of mappings) {
           rows.push({
@@ -108,7 +114,7 @@ export default function DocAnalyser({ onComplete }) {
           <h3 className="text-sm font-semibold text-text-primary">Review Extracted Mappings</h3>
           <button className="btn-ghost text-xs" onClick={() => setResults(null)}>← Back to upload</button>
         </div>
-        <ValidationTable rows={results} onChange={setResults} onSave={handleSave} saving={saving} />
+        <ValidationTable rows={results} onChange={setResults} onSave={handleSave} saving={saving} categories={categories} />
       </div>
     )
   }
@@ -128,6 +134,19 @@ export default function DocAnalyser({ onComplete }) {
         </div>
       </div>
 
+      {/* Device type info + cross-type warning */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] text-text-muted">Categories ({categories.length}):</span>
+        {categories.map((c) => (
+          <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-4 text-text-secondary">{c}</span>
+        ))}
+      </div>
+      {crossType && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-accent-yellow/10 border border-accent-yellow/25 text-xs text-accent-yellow">
+          ⚠️ Cross device type: {DEVICE_TYPES[srcType]?.label} → {DEVICE_TYPES[tgtType]?.label}. Using combined categories.
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <UploadArea label="Source Docs" fileName={sourceFile} hasContent={!!sourceDoc}
           onFile={(f) => readFile(f, setSourceDoc, setSourceFile)} fileRef={srcRef}
@@ -140,7 +159,7 @@ export default function DocAnalyser({ onComplete }) {
       {/* Progress */}
       {analysing && (
         <div className="space-y-1">
-          {CATEGORIES.map((cat) => {
+          {categories.map((cat) => {
             const p = progress[cat]
             return (
               <div key={cat} className="flex items-center gap-2 text-xs">
@@ -203,7 +222,7 @@ function ProductSelect({ groups, allProducts, value, onChange }) {
       {groups.map((g) => {
         const prods = g.products.map((id) => typeof id === 'string' ? allProducts[id] : id).filter(Boolean)
         if (!prods.length) return null
-        return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{p.fullName ?? p.name}</option>)}</optgroup>
+        return <optgroup key={g.id} label={g.name}>{prods.map((p) => <option key={p.id} value={p.id}>{DEVICE_TYPES[p.deviceType]?.icon ?? ''} {p.fullName ?? p.name}</option>)}</optgroup>
       })}
     </select>
   )
