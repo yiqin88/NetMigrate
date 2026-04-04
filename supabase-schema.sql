@@ -152,6 +152,50 @@ DO $$ BEGIN
 END $$;
 
 
+-- ── 5. Command Knowledge Base table ─────────────────────────────────────────
+-- Verified CLI command mappings between vendor platforms
+
+CREATE TABLE IF NOT EXISTS public.command_knowledge_base (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  source_vendor     text NOT NULL,
+  source_product    text NOT NULL,
+  target_vendor     text NOT NULL,
+  target_product    text NOT NULL,
+  source_command    text NOT NULL,
+  target_command    text NOT NULL,
+  category          text NOT NULL DEFAULT 'other' CHECK (category IN ('vlan','interface','routing','aaa','stp','lag','other')),
+  confidence        text NOT NULL DEFAULT 'medium' CHECK (confidence IN ('high','medium','low')),
+  verified_by_human boolean NOT NULL DEFAULT false,
+  source_type       text DEFAULT 'manual' CHECK (source_type IN ('doc_upload','web_search','manual','training')),
+  notes             text,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS kb_product_pair_idx
+  ON public.command_knowledge_base (source_product, target_product, category);
+
+CREATE INDEX IF NOT EXISTS kb_category_idx
+  ON public.command_knowledge_base (category, confidence);
+
+ALTER TABLE public.command_knowledge_base ENABLE ROW LEVEL SECURITY;
+
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='command_knowledge_base' AND policyname='anon can select kb') THEN
+    CREATE POLICY "anon can select kb" ON public.command_knowledge_base FOR SELECT TO anon USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='command_knowledge_base' AND policyname='anon can insert kb') THEN
+    CREATE POLICY "anon can insert kb" ON public.command_knowledge_base FOR INSERT TO anon WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='command_knowledge_base' AND policyname='anon can update kb') THEN
+    CREATE POLICY "anon can update kb" ON public.command_knowledge_base FOR UPDATE TO anon USING (true) WITH CHECK (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename='command_knowledge_base' AND policyname='anon can delete kb') THEN
+    CREATE POLICY "anon can delete kb" ON public.command_knowledge_base FOR DELETE TO anon USING (true);
+  END IF;
+END $$;
+
+
 -- ── Verification ────────────────────────────────────────────────────────────
 -- Run these after the script to verify everything is correct:
 

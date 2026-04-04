@@ -239,6 +239,123 @@ Pick the closest matching productId. If unsure, use confidence "low".`,
   }
 }
 
+const CATEGORIES = ['vlan', 'interface', 'routing', 'aaa', 'stp', 'lag', 'other']
+
+/**
+ * Analyse uploaded documentation and extract command mappings for one category.
+ */
+export async function analyseDocuments({ sourceDoc, targetDoc, sourceProduct, targetProduct, category }, onProgress) {
+  const apiKey = getApiKey()
+  if (!apiKey) throw new Error('API key not configured.')
+
+  console.log(`[claude] analyseDocuments: ${category} (${sourceProduct} → ${targetProduct})`)
+  if (onProgress) onProgress({ category, status: 'processing' })
+
+  try {
+    const { status, body } = await httpsPost(apiKey, {
+      model: MODEL,
+      max_tokens: 4096,
+      system: `You extract CLI command mappings between network platforms from documentation.
+Category: ${category.toUpperCase()}
+Source platform: ${sourceProduct}
+Target platform: ${targetProduct}
+
+Return ONLY a JSON array of mappings. Each mapping:
+{ "source_command": "command with X as variable", "target_command": "equivalent with X as variable", "confidence": "high|medium|low", "notes": "brief explanation" }
+
+Use X, Y, Z as variable placeholders. Only return mappings for the ${category} category.
+If no mappings found for this category, return empty array [].`,
+      messages: [{
+        role: 'user',
+        content: `SOURCE DOCS (${sourceProduct}):\n${sourceDoc.slice(0, 8000)}\n\n---\n\nTARGET DOCS (${targetProduct}):\n${targetDoc.slice(0, 8000)}`
+      }],
+    }, 60_000)
+
+    if (status < 200 || status >= 300) {
+      console.error(`[claude] analyseDocuments ${category} failed:`, status)
+      return []
+    }
+
+    const text = body.content?.[0]?.text ?? ''
+    const jsonMatch = text.match(/\[[\s\S]*\]/)
+    if (!jsonMatch) return []
+
+    const mappings = JSON.parse(jsonMatch[0])
+    console.log(`[claude] ${category}: ${mappings.length} mappings found`)
+    if (onProgress) onProgress({ category, status: 'done', count: mappings.length })
+    return Array.isArray(mappings) ? mappings : []
+  } catch (err) {
+    console.error(`[claude] analyseDocuments ${category} error:`, err.message)
+    if (onProgress) onProgress({ category, status: 'error', error: err.message })
+    return []
+  }
+}
+
+/**
+ * Generate command mappings for one category using Claude's built-in knowledge.
+ */
+export async function analyseWebSearch({ sourceProduct, targetProduct, category }, onProgress) {
+  const apiKey = getApiKey()
+  if (!apiKey) throw new Error('API key not configured.')
+
+  console.log(`[claude] analyseWebSearch: ${category} (${sourceProduct} → ${targetProduct})`)
+  if (onProgress) onProgress({ category, status: 'processing' })
+
+  try {
+    const { status, body } = await httpsPost(apiKey, {
+      model: MODEL,
+      max_tokens: 4096,
+      system: `You are a network engineering expert with comprehensive knowledge of CLI command references for all major network vendors.
+
+Generate a complete mapping of ${category.toUpperCase()} CLI commands between:
+Source: ${sourceProduct}
+Target: ${targetProduct}
+
+Based on official CLI references and documentation for both platforms.
+
+Return ONLY a JSON object:
+{
+  "mappings": [
+    { "source_command": "command with X as variable", "target_command": "equivalent", "confidence": "high|medium|low", "notes": "explanation" }
+  ],
+  "sources": ["Reference document or URL used"],
+  "unmappable": ["Commands with no equivalent"]
+}
+
+Use X, Y, Z as variable placeholders. Focus ONLY on ${category} commands.
+Rate confidence: high = exact equivalent, medium = close equivalent with caveats, low = approximate or partial.`,
+      messages: [{
+        role: 'user',
+        content: `Generate all ${category} command mappings from ${sourceProduct} to ${targetProduct}. Be comprehensive — include all common and important commands for this category.`
+      }],
+    }, 60_000)
+
+    if (status < 200 || status >= 300) {
+      console.error(`[claude] analyseWebSearch ${category} failed:`, status)
+      return { mappings: [], sources: [], unmappable: [] }
+    }
+
+    const text = body.content?.[0]?.text ?? ''
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) return { mappings: [], sources: [], unmappable: [] }
+
+    const result = JSON.parse(jsonMatch[0])
+    console.log(`[claude] ${category}: ${result.mappings?.length ?? 0} mappings, ${result.unmappable?.length ?? 0} unmappable`)
+    if (onProgress) onProgress({ category, status: 'done', count: result.mappings?.length ?? 0 })
+    return {
+      mappings: Array.isArray(result.mappings) ? result.mappings : [],
+      sources: Array.isArray(result.sources) ? result.sources : [],
+      unmappable: Array.isArray(result.unmappable) ? result.unmappable : [],
+    }
+  } catch (err) {
+    console.error(`[claude] analyseWebSearch ${category} error:`, err.message)
+    if (onProgress) onProgress({ category, status: 'error', error: err.message })
+    return { mappings: [], sources: [], unmappable: [] }
+  }
+}
+
+export { CATEGORIES }
+
 /**
  * Extract command translation rules from a source/converted config pair.
  * Uses Haiku for speed + cost efficiency.

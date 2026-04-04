@@ -61,4 +61,17 @@ export const IPC = {
   CUSTOM_PRODUCTS_SAVE: 'custom:products-save',
   CUSTOM_PRODUCTS_UPDATE: 'custom:products-update',
   CUSTOM_PRODUCTS_DELETE: 'custom:products-delete',
+
+  // Knowledge Base
+  KB_LIST: 'kb:list',
+  KB_SAVE_BATCH: 'kb:save-batch',
+  KB_UPDATE: 'kb:update',
+  KB_DELETE: 'kb:delete',
+  KB_STATS: 'kb:stats',
+  KB_GET_FOR_CONVERSION: 'kb:get-for-conversion',
+  KB_EXPORT_CSV: 'kb:export-csv',
+  KB_ANALYSE_DOCS: 'kb:analyse-docs',
+  KB_ANALYSE_DOCS_PROGRESS: 'kb:analyse-docs-progress',
+  KB_ANALYSE_WEB: 'kb:analyse-web',
+  KB_ANALYSE_WEB_PROGRESS: 'kb:analyse-web-progress',
 }

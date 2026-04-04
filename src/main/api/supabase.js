@@ -18,7 +18,7 @@ function resolveCredentials() {
   return { url, key }
 }
 
-function getClient() {
+export function getClient() {
   if (_client) return _client
 
   const { url, key } = resolveCredentials()

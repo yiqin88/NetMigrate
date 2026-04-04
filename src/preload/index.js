@@ -76,6 +76,29 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (id) => ipcRenderer.invoke(IPC.CUSTOM_PRODUCTS_DELETE, id),
   },
 
+  // ── Knowledge Base ─────────────────────────────────────────────────────────
+  kb: {
+    list: (payload) => ipcRenderer.invoke(IPC.KB_LIST, payload),
+    saveBatch: (entries) => ipcRenderer.invoke(IPC.KB_SAVE_BATCH, entries),
+    update: (id, updates) => ipcRenderer.invoke(IPC.KB_UPDATE, { id, updates }),
+    delete: (id) => ipcRenderer.invoke(IPC.KB_DELETE, id),
+    stats: () => ipcRenderer.invoke(IPC.KB_STATS),
+    getForConversion: (payload) => ipcRenderer.invoke(IPC.KB_GET_FOR_CONVERSION, payload),
+    exportCSV: (payload) => ipcRenderer.invoke(IPC.KB_EXPORT_CSV, payload),
+    analyseDocs: (payload) => ipcRenderer.invoke(IPC.KB_ANALYSE_DOCS, payload),
+    onDocsProgress: (cb) => {
+      const handler = (_, data) => cb(data)
+      ipcRenderer.on(IPC.KB_ANALYSE_DOCS_PROGRESS, handler)
+      return () => ipcRenderer.removeListener(IPC.KB_ANALYSE_DOCS_PROGRESS, handler)
+    },
+    analyseWeb: (payload) => ipcRenderer.invoke(IPC.KB_ANALYSE_WEB, payload),
+    onWebProgress: (cb) => {
+      const handler = (_, data) => cb(data)
+      ipcRenderer.on(IPC.KB_ANALYSE_WEB_PROGRESS, handler)
+      return () => ipcRenderer.removeListener(IPC.KB_ANALYSE_WEB_PROGRESS, handler)
+    },
+  },
+
   // ── Auto-updater ──────────────────────────────────────────────────────────
   updater: {
     download: () => ipcRenderer.invoke(IPC.UPDATE_DOWNLOAD),

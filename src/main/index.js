@@ -4,7 +4,8 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { setupUpdater } from './updater'
 import { setupSafeStorage, getSetting, setSetting, deleteSetting } from './settings'
 import { IPC } from '../shared/ipcChannels'
-import { convertConfig, testApiKey, extractCommandMappings, detectConfigVendor } from './api/claude'
+import { convertConfig, testApiKey, extractCommandMappings, detectConfigVendor, analyseDocuments, analyseWebSearch, CATEGORIES } from './api/claude'
+import { listKBEntries, saveBatchKBEntries, updateKBEntry, deleteKBEntry, getKBStats, getKBForConversion, exportKBAsCSV } from './api/knowledgeBase'
 import {
   getRecentMigrations, saveMigration, getMigrationStats,
   testConnection as testSupabaseConnection, resetClient as resetSupabaseClient,
@@ -250,3 +251,40 @@ ipcMain.handle(IPC.CUSTOM_PRODUCTS_LIST, async () => await listCustomProducts())
 ipcMain.handle(IPC.CUSTOM_PRODUCTS_SAVE, async (_, record) => await saveCustomProduct(record))
 ipcMain.handle(IPC.CUSTOM_PRODUCTS_UPDATE, async (_, { id, updates }) => await updateCustomProduct(id, updates))
 ipcMain.handle(IPC.CUSTOM_PRODUCTS_DELETE, async (_, id) => await deleteCustomProduct(id))
+
+// ── IPC: Knowledge Base ───────────────────────────────────────────────────────
+
+ipcMain.handle(IPC.KB_LIST, async (_, payload) => await listKBEntries(payload))
+ipcMain.handle(IPC.KB_SAVE_BATCH, async (_, entries) => await saveBatchKBEntries(entries))
+ipcMain.handle(IPC.KB_UPDATE, async (_, { id, updates }) => await updateKBEntry(id, updates))
+ipcMain.handle(IPC.KB_DELETE, async (_, id) => await deleteKBEntry(id))
+ipcMain.handle(IPC.KB_STATS, async () => await getKBStats())
+ipcMain.handle(IPC.KB_GET_FOR_CONVERSION, async (_, payload) => await getKBForConversion(payload))
+ipcMain.handle(IPC.KB_EXPORT_CSV, async (_, payload) => {
+  const entries = await listKBEntries(payload)
+  return exportKBAsCSV(entries)
+})
+
+ipcMain.handle(IPC.KB_ANALYSE_DOCS, async (event, { sourceDoc, targetDoc, sourceProduct, targetProduct }) => {
+  const results = {}
+  for (const cat of CATEGORIES) {
+    const mappings = await analyseDocuments(
+      { sourceDoc, targetDoc, sourceProduct, targetProduct, category: cat },
+      (progress) => event.sender.send(IPC.KB_ANALYSE_DOCS_PROGRESS, progress)
+    )
+    results[cat] = mappings
+  }
+  return results
+})
+
+ipcMain.handle(IPC.KB_ANALYSE_WEB, async (event, { sourceProduct, targetProduct }) => {
+  const results = {}
+  for (const cat of CATEGORIES) {
+    const result = await analyseWebSearch(
+      { sourceProduct, targetProduct, category: cat },
+      (progress) => event.sender.send(IPC.KB_ANALYSE_WEB_PROGRESS, progress)
+    )
+    results[cat] = result
+  }
+  return results
+})
