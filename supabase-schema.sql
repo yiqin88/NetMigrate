@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS public.command_knowledge_base (
   target_product    text NOT NULL,
   source_command    text NOT NULL,
   target_command    text NOT NULL,
-  category          text NOT NULL DEFAULT 'other' CHECK (category IN ('vlan','interface','routing','aaa','stp','lag','other')),
+  category          text NOT NULL DEFAULT 'other' CHECK (category IN ('vlan','interface','routing','aaa','stp','lag','qos','lldp','security-policy','nat','zones','vpn-ipsec','vpn-ssl','security-profiles','ha','ssid','rf-profile','other')),
   confidence        text NOT NULL DEFAULT 'medium' CHECK (confidence IN ('high','medium','low')),
   verified_by_human boolean NOT NULL DEFAULT false,
   source_type       text DEFAULT 'manual' CHECK (source_type IN ('doc_upload','web_search','manual','training')),
@@ -196,7 +196,13 @@ DO $$ BEGIN
 END $$;
 
 
--- ── 6. Schema updates — add device_type columns ────────────────────────────
+-- ── 6. Fix category constraint to include all device type categories ────────
+
+ALTER TABLE public.command_knowledge_base DROP CONSTRAINT IF EXISTS command_knowledge_base_category_check;
+ALTER TABLE public.command_knowledge_base ADD CONSTRAINT command_knowledge_base_category_check
+  CHECK (category IN ('vlan','interface','routing','aaa','stp','lag','qos','lldp','security-policy','nat','zones','vpn-ipsec','vpn-ssl','security-profiles','ha','ssid','rf-profile','other'));
+
+-- ── 7. Schema updates — add device_type columns ────────────────────────────
 
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='command_knowledge_base' AND column_name='device_type') THEN

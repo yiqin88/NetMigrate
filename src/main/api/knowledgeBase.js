@@ -22,12 +22,25 @@ export async function listKBEntries({ sourceProduct, targetProduct, category, co
   return data ?? []
 }
 
+const VALID_CATEGORIES = new Set([
+  'vlan', 'interface', 'routing', 'aaa', 'stp', 'lag', 'qos', 'lldp',
+  'security-policy', 'nat', 'zones', 'vpn-ipsec', 'vpn-ssl', 'security-profiles',
+  'ha', 'ssid', 'rf-profile', 'other',
+])
+
+function sanitizeCategory(cat) {
+  const lower = (cat ?? 'other').toLowerCase().trim()
+  return VALID_CATEGORIES.has(lower) ? lower : 'other'
+}
+
 export async function saveBatchKBEntries(entries) {
   const client = getClient()
   if (!client) throw new Error('Supabase not configured.')
 
-  // Supabase supports bulk insert
-  const { data, error } = await client.from(TABLE).insert(entries).select()
+  // Sanitize category values to match Supabase constraint
+  const sanitized = entries.map((e) => ({ ...e, category: sanitizeCategory(e.category) }))
+
+  const { data, error } = await client.from(TABLE).insert(sanitized).select()
   if (error) throw new Error(`KB save failed: ${error.message}`)
   console.log(`[kb] Saved ${data.length} entries`)
   return data
