@@ -19,3 +19,7 @@ CREATE POLICY "anon can read org_settings"
 -- Seed an initial invite code (change values as needed):
 -- INSERT INTO public.org_settings (invite_code, org_name)
 -- VALUES ('NETMIG-2024-ALPHA', 'NetMigrate Team');
+
+
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im90cmtrbXZqZXhjdmd3dm5sbmR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUwNjc2MzYsImV4cCI6MjA5MDY0MzYzNn0.7aKiaIRPqiANB-fgbLaTKygezPV3-JHWZMtjssFuy6M

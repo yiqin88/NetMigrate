@@ -162,6 +162,7 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
   const [description, setDescription] = useState('')
   const [role, setRole] = useState('both')
   const [deviceType, setDeviceType] = useState('switch')
+  const [customInput, setCustomInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [customDeviceTypes, setCustomDeviceTypes] = useState([])
 
@@ -171,20 +172,26 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
     }).catch(() => {})
   }, [])
 
-  const deviceTypeOptions = useMemo(() => {
-    const builtIn = Object.keys(DEVICE_TYPES)
+  // Merge built-in + Supabase custom types (excluding built-ins to avoid dupes)
+  const extraTypes = useMemo(() => {
+    const builtInKeys = new Set(Object.keys(DEVICE_TYPES))
     const fromProducts = Object.values(allProducts)
       .map((p) => p.deviceType)
-      .filter(Boolean)
-    const fromDb = customDeviceTypes.map((t) => t.name)
-    return [...new Set([...builtIn, ...fromProducts, ...fromDb])].sort()
+      .filter((dt) => dt && !builtInKeys.has(dt))
+    const fromDb = customDeviceTypes
+      .map((t) => t.name)
+      .filter((dt) => !builtInKeys.has(dt))
+    return [...new Set([...fromProducts, ...fromDb])].sort()
   }, [allProducts, customDeviceTypes])
+
+  const resolvedType = deviceType === '__custom__'
+    ? customInput.trim().toLowerCase().replace(/\s+/g, '-') || 'switch'
+    : deviceType
 
   async function handleSave() {
     if (!name.trim()) return
     setSaving(true)
     try {
-      const normalizedType = deviceType.trim().toLowerCase().replace(/\s+/g, '-') || 'switch'
       const productId = `${vendorId}_${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
       await window.electronAPI.customProducts.save({
         product_id: productId,
@@ -195,12 +202,12 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
         color,
         description: description.trim() || null,
         role,
-        device_type: normalizedType,
+        device_type: resolvedType,
       })
       // Auto-save custom device types to Supabase so they sync to all users
-      if (!DEVICE_TYPES[normalizedType]) {
-        const label = deviceType.trim() || normalizedType
-        window.electronAPI?.deviceTypes?.save({ name: normalizedType, label }).catch(() => {})
+      if (!DEVICE_TYPES[resolvedType]) {
+        const label = deviceType === '__custom__' ? (customInput.trim() || resolvedType) : resolvedType
+        window.electronAPI?.deviceTypes?.save({ name: resolvedType, label }).catch(() => {})
       }
       onSaved()
     } catch (err) {
@@ -222,20 +229,24 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
           <option value="target">Target</option>
           <option value="both">Both</option>
         </select>
-        <input
-          list="device-type-options"
-          className="input text-xs w-28"
-          placeholder="Device type"
-          value={deviceType}
-          onChange={(e) => setDeviceType(e.target.value)}
-        />
-        <datalist id="device-type-options">
-          {deviceTypeOptions.map((dt) => (
-            <option key={dt} value={dt}>
-              {DEVICE_TYPES[dt] ? `${DEVICE_TYPES[dt].icon} ${DEVICE_TYPES[dt].label}` : dt}
-            </option>
+        <select className="input text-xs w-28" value={deviceType} onChange={(e) => setDeviceType(e.target.value)}>
+          {Object.entries(DEVICE_TYPES).map(([k, v]) => (
+            <option key={k} value={k}>{v.icon} {v.label}</option>
           ))}
-        </datalist>
+          {extraTypes.map((dt) => (
+            <option key={dt} value={dt}>{dt}</option>
+          ))}
+          <option value="__custom__">Other…</option>
+        </select>
+        {deviceType === '__custom__' && (
+          <input
+            className="input text-xs w-28"
+            placeholder="e.g. SD-WAN"
+            value={customInput}
+            onChange={(e) => setCustomInput(e.target.value)}
+            autoFocus
+          />
+        )}
       </div>
       <div className="flex gap-1.5 justify-end">
         <button className="btn-ghost text-[10px]" onClick={onCancel}>Cancel</button>

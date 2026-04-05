@@ -277,7 +277,11 @@ export async function listCustomProducts() {
 export async function saveCustomProduct(record) {
   const client = getClient()
   if (!client) throw new Error('Supabase not configured.')
-  const { data, error } = await client.from('custom_products').insert(record).select().single()
+  const { data, error } = await client
+    .from('custom_products')
+    .upsert(record, { onConflict: 'product_id' })
+    .select()
+    .single()
   if (error) throw new Error(`Save product failed: ${error.message}`)
   return data
 }

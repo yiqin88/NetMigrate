@@ -2,12 +2,13 @@
 
 export const DEVICE_TYPES = {
   switch: { label: 'Switch', icon: '🔀' },
-  firewall: { label: 'Firewall', icon: '🔒' },
-  'wireless-controller': { label: 'Wireless', icon: '📡' },
   router: { label: 'Router', icon: '🌐' },
+  firewall: { label: 'Firewall', icon: '🔒' },
   ap: { label: 'Access Point', icon: '📶' },
   controller: { label: 'Controller', icon: '🎛️' },
   'load-balancer': { label: 'Load Balancer', icon: '⚖️' },
+  'wireless-controller': { label: 'WLC', icon: '📡' },
+  nac: { label: 'NAC', icon: '🛡️' },
 }
 
 // ── Categories by device type combination ────────────────────────────────────
@@ -282,7 +283,11 @@ export function mergeCustomData(customVendors = [], customProducts = []) {
 
   // Merge vendor groups
   const allGroups = [...VENDOR_GROUPS]
+
+  // Add custom products to their vendor groups (built-in or custom)
+  const vendorIdsHandled = new Set()
   for (const cv of customVendors) {
+    vendorIdsHandled.add(cv.vendor_id)
     if (!BUILTIN_VENDOR_IDS.has(cv.vendor_id)) {
       const products = customProducts
         .filter((p) => p.vendor_id === cv.vendor_id)
@@ -295,11 +300,24 @@ export function mergeCustomData(customVendors = [], customProducts = []) {
         isCustom: true,
       })
     } else {
-      // Add custom products to existing vendor group
       const existing = allGroups.find((g) => g.id === cv.vendor_id)
       if (existing) {
         const newProductIds = customProducts
           .filter((p) => p.vendor_id === cv.vendor_id)
+          .map((p) => p.product_id)
+        existing.products = [...existing.products, ...newProductIds]
+      }
+    }
+  }
+
+  // Also attach custom products to built-in vendors even without a custom vendor record
+  for (const cp of customProducts) {
+    if (!vendorIdsHandled.has(cp.vendor_id) && BUILTIN_VENDOR_IDS.has(cp.vendor_id)) {
+      vendorIdsHandled.add(cp.vendor_id)
+      const existing = allGroups.find((g) => g.id === cp.vendor_id)
+      if (existing) {
+        const newProductIds = customProducts
+          .filter((p) => p.vendor_id === cp.vendor_id)
           .map((p) => p.product_id)
         existing.products = [...existing.products, ...newProductIds]
       }
