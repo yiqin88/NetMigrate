@@ -4,6 +4,12 @@ const { autoUpdater } = updaterPkg
 import { IPC } from '../shared/ipcChannels'
 import { setSetting } from './settings'
 
+// Skip ASAR packing issues during update extraction
+process.env.ELECTRON_NO_ASAR = '1'
+
+// Skip code signature verification for unsigned builds
+autoUpdater.forceDevUpdateConfig = true
+
 let mainWin = null
 let checkSource = 'silent' // 'silent' | 'menu' | 'renderer'
 let isChecking = false
