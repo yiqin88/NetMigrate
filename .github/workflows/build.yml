@@ -38,6 +38,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-*-mac-universal.dmg --clobber
 
+      - name: Upload ZIP to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-*-mac-universal.zip --clobber
+
       - name: Upload latest-mac.yml to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
