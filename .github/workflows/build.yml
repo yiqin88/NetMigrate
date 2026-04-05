@@ -36,7 +36,7 @@ jobs:
       - name: Upload DMG to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-*-mac-universal.dmg
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-*-mac-universal.dmg --clobber
 
   build-windows:
     runs-on: windows-latest
@@ -66,9 +66,9 @@ jobs:
       - name: Upload x64 installer to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-Setup-*-win-x64.exe
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-Setup-*-win-x64.exe --clobber
 
       - name: Upload arm64 installer to release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-Setup-*-win-arm64.exe
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-Setup-*-win-arm64.exe --clobber
