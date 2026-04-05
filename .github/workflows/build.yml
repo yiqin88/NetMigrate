@@ -39,6 +39,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-*-mac-universal.dmg --clobber
 
+      - name: Upload latest-mac.yml to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/latest-mac.yml --clobber
+
   build-windows:
     runs-on: windows-latest
     permissions:
@@ -74,3 +79,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: gh release upload "${{ github.event.release.tag_name }}" dist/NetMigrate-Setup-*-win-arm64.exe --clobber
+
+      - name: Upload latest.yml to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/latest.yml --clobber
