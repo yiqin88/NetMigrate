@@ -1,3 +1,11 @@
+// Prevent EPIPE errors from crashing the app when stdout/stderr pipe closes
+for (const stream of [process.stdout, process.stderr]) {
+  stream?.on?.('error', (err) => {
+    if (err.code === 'EPIPE' || err.code === 'ERR_STREAM_DESTROYED') return
+    throw err
+  })
+}
+
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
