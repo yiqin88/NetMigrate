@@ -5,8 +5,8 @@ import { IPC } from '../shared/ipcChannels'
 import { setSetting } from './settings'
 
 // Build-time GitHub PAT for private repo update checks
-// eslint-disable-next-line no-undef
-const GH_PAT = typeof __GH_PAT__ === 'string' ? __GH_PAT__ : ''
+const GH_PAT = process.env.VITE_GH_PAT || ''
+console.log('[updater] GH_PAT length:', GH_PAT.length, 'prefix:', GH_PAT.slice(0, 4) || '(empty)')
 
 let mainWin = null
 let checkSource = 'silent' // 'silent' | 'menu' | 'renderer'
@@ -28,7 +28,13 @@ export function setupUpdater(window) {
   autoUpdater.autoInstallOnAppQuit = true
   if (GH_PAT) {
     autoUpdater.requestHeaders = { Authorization: `token ${GH_PAT}` }
+    console.log('[updater] requestHeaders set with token')
+  } else {
+    console.warn('[updater] WARNING: GH_PAT is empty — private repo updates will 404')
   }
+
+  console.log('[updater] feedURL config:', JSON.stringify(autoUpdater.currentUpdater?.resolveFiles || 'N/A'))
+  console.log('[updater] app version:', autoUpdater.currentVersion?.version)
 
   autoUpdater.on('update-available', async (info) => {
     recordCheckTime()
@@ -67,6 +73,7 @@ export function setupUpdater(window) {
   })
 
   autoUpdater.on('error', (err) => {
+    console.error('[updater] error:', err?.message, err?.stack)
     if (checkSource === 'menu') {
       checkSource = 'silent'
       dialog.showMessageBox(mainWin, {
