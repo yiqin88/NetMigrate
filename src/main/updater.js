@@ -4,10 +4,9 @@ const { autoUpdater } = updaterPkg
 import { IPC } from '../shared/ipcChannels'
 import { setSetting } from './settings'
 
-// Inject build-time GitHub PAT so electron-updater can access private releases
+// Build-time GitHub PAT for private repo update checks
 // eslint-disable-next-line no-undef
-const ghToken = typeof __GH_TOKEN__ === 'string' ? __GH_TOKEN__ : ''
-if (ghToken) process.env.GH_TOKEN = ghToken
+const GH_PAT = typeof __GH_PAT__ === 'string' ? __GH_PAT__ : ''
 
 let mainWin = null
 let checkSource = 'silent' // 'silent' | 'menu' | 'renderer'
@@ -27,6 +26,9 @@ export function setupUpdater(window) {
   mainWin = window
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = true
+  if (GH_PAT) {
+    autoUpdater.requestHeaders = { Authorization: `token ${GH_PAT}` }
+  }
 
   autoUpdater.on('update-available', async (info) => {
     recordCheckTime()
