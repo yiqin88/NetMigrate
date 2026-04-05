@@ -4,9 +4,14 @@ on:
   release:
     types: [published]
 
+permissions:
+  contents: write
+
 jobs:
   build-mac:
     runs-on: macos-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Check out repository
@@ -35,6 +40,8 @@ jobs:
 
   build-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Check out repository
