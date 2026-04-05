@@ -280,3 +280,33 @@ export async function deleteCustomProduct(id) {
   const { error } = await client.from('custom_products').delete().eq('id', id)
   if (error) throw new Error(`Delete product failed: ${error.message}`)
 }
+
+// ── Setup wizard ─────────────────────────────────────────────────────────────
+
+/**
+ * Validate an invite code against the org_settings table.
+ * Uses build-time credentials (not safeStore) so it works before setup.
+ */
+export async function validateInviteCode(code) {
+  const url = process.env.VITE_SUPABASE_URL
+  const key = process.env.VITE_SUPABASE_ANON_KEY
+  if (!url || !key) {
+    return { valid: false, error: 'App build missing Supabase configuration' }
+  }
+
+  try {
+    const tempClient = createClient(url, key)
+    const { data, error } = await tempClient
+      .from('org_settings')
+      .select('org_name')
+      .eq('invite_code', code.trim())
+      .single()
+
+    if (error || !data) {
+      return { valid: false, error: 'Invalid invite code' }
+    }
+    return { valid: true, orgName: data.org_name }
+  } catch (err) {
+    return { valid: false, error: err.message }
+  }
+}

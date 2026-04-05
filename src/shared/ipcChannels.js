@@ -74,4 +74,7 @@ export const IPC = {
   KB_ANALYSE_DOCS_PROGRESS: 'kb:analyse-docs-progress',
   KB_ANALYSE_WEB: 'kb:analyse-web',
   KB_ANALYSE_WEB_PROGRESS: 'kb:analyse-web-progress',
+
+  // Setup wizard
+  SETUP_VALIDATE_INVITE: 'setup:validate-invite',
 }

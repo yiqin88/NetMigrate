@@ -31,7 +31,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     delete: (key) => ipcRenderer.invoke(IPC.SAFE_STORE_DELETE, key),
   },
 
-  // ── Claude API (calls go through main process) ──────────��─────────────────
+  // ── Setup wizard ─────────────────────────────────────────────────────────
+  setup: {
+    validateInvite: (code) => ipcRenderer.invoke(IPC.SETUP_VALIDATE_INVITE, code),
+  },
+
+  // ── Claude API (calls go through main process) ────────────────────────────
   claude: {
     convert: (payload) => ipcRenderer.invoke(IPC.CLAUDE_CONVERT, payload),
     testKey: (apiKey) => ipcRenderer.invoke(IPC.CLAUDE_TEST_KEY, apiKey),

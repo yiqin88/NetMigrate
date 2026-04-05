@@ -13,6 +13,7 @@ import {
   deleteTrainingExample, getTrainingExampleCounts, getTrainingExamplesForConversion,
   listCustomVendors, saveCustomVendor, deleteCustomVendor,
   listCustomProducts, saveCustomProduct, updateCustomProduct, deleteCustomProduct,
+  validateInviteCode,
 } from './api/supabase'
 
 let mainWindow
@@ -218,6 +219,12 @@ ipcMain.handle(IPC.SAFE_STORE_DELETE, (_, key) => {
 ipcMain.handle(IPC.UPDATE_CHECK, () => checkForUpdates('renderer'))
 ipcMain.handle(IPC.UPDATE_DOWNLOAD, () => downloadUpdate())
 ipcMain.handle(IPC.UPDATE_INSTALL, () => installUpdate())
+
+// ── IPC: Setup wizard ────────────────────────────────────────────────────────
+
+ipcMain.handle(IPC.SETUP_VALIDATE_INVITE, async (_, code) => {
+  return await validateInviteCode(code)
+})
 
 // ── IPC: Claude API (main process) ────────────────────────────────────────────
 
