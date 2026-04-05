@@ -61,23 +61,25 @@
     "mac": {
       "category": "public.app-category.utilities",
       "icon": "assets/icon.icns",
+      "artifactName": "${productName}-${version}-mac-${arch}.${ext}",
       "target": [
         {
           "target": "dmg",
           "arch": [
-            "x64",
-            "arm64"
+            "universal"
           ]
         }
       ]
     },
     "win": {
       "icon": "assets/icon.ico",
+      "artifactName": "${productName}-Setup-${version}-win-${arch}.${ext}",
       "target": [
         {
           "target": "nsis",
           "arch": [
-            "x64"
+            "x64",
+            "arm64"
           ]
         }
       ]
