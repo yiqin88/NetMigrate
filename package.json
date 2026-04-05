@@ -1,6 +1,6 @@
 {
   "name": "netmigrate",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Network configuration migration tool for network engineers",
   "main": "out/main/index.js",
   "type": "module",
