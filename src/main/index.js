@@ -1,7 +1,7 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import { setupUpdater } from './updater'
+import { setupUpdater, checkForUpdates, downloadUpdate, installUpdate } from './updater'
 import { setupSafeStorage, getSetting, setSetting, deleteSetting } from './settings'
 import { IPC } from '../shared/ipcChannels'
 import { convertConfig, testApiKey, extractCommandMappings, detectConfigVendor, analyseDocuments, analyseWebSearch, CATEGORIES } from './api/claude'
@@ -79,6 +79,52 @@ app.whenReady().then(() => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+
+  // ── Application menu ──────────────────────────────────────────────────────
+  const menuTemplate = [
+    ...(process.platform === 'darwin' ? [{
+      label: app.name,
+      submenu: [
+        { role: 'about' },
+        { type: 'separator' },
+        { role: 'hide' },
+        { role: 'hideOthers' },
+        { role: 'unhide' },
+        { type: 'separator' },
+        { role: 'quit' },
+      ]
+    }] : []),
+    { role: 'editMenu' },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Check for Updates...',
+          click: () => {
+            if (is.dev) {
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                title: 'Development Mode',
+                message: 'Update checking is disabled in development mode.',
+                buttons: ['OK'],
+              })
+            } else {
+              checkForUpdates('menu').catch((err) => {
+                dialog.showMessageBox(mainWindow, {
+                  type: 'error',
+                  title: 'Update Error',
+                  message: 'Could not check for updates. Please check your internet connection.',
+                  detail: err?.message ?? 'Unknown error',
+                  buttons: ['OK'],
+                })
+              })
+            }
+          }
+        }
+      ]
+    }
+  ]
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate))
 
   // Check for updates after a short delay to let the UI settle
   setTimeout(() => {
@@ -166,6 +212,12 @@ ipcMain.handle(IPC.SAFE_STORE_SET, (_, key, value) => {
 ipcMain.handle(IPC.SAFE_STORE_DELETE, (_, key) => {
   deleteSetting(`__safe_${key}`)
 })
+
+// ── IPC: Auto-updater ────────────────────────────────────────────────────────
+
+ipcMain.handle(IPC.UPDATE_CHECK, () => checkForUpdates('renderer'))
+ipcMain.handle(IPC.UPDATE_DOWNLOAD, () => downloadUpdate())
+ipcMain.handle(IPC.UPDATE_INSTALL, () => installUpdate())
 
 // ── IPC: Claude API (main process) ────────────────────────────────────────────
 

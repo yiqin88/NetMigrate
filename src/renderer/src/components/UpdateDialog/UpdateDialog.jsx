@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { shouldSuppressUpdateOverlay } from '../../services/updateState'
 
 export default function UpdateDialog() {
   const [update, setUpdate] = useState(null)   // { version, releaseNotes }
@@ -10,9 +11,15 @@ export default function UpdateDialog() {
     const api = window.electronAPI?.updater
     if (!api) return
 
-    api.onUpdateAvailable((info) => setUpdate(info))
-    api.onUpdateDownloaded((info) => { setDownloaded(true); setProgress(null) })
-    api.onProgress((p) => setProgress(Math.round(p.percent)))
+    const unsubs = [
+      api.onUpdateAvailable((info) => {
+        if (!shouldSuppressUpdateOverlay()) setUpdate(info)
+      }),
+      api.onUpdateDownloaded(() => { setDownloaded(true); setProgress(null) }),
+      api.onProgress((p) => setProgress(Math.round(p.percent))),
+    ]
+
+    return () => unsubs.forEach((unsub) => unsub?.())
   }, [])
 
   if (!update || dismissed) return null

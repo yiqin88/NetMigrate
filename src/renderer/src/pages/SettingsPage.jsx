@@ -4,6 +4,7 @@ import { testApiKey } from '../services/claude'
 import TrainingConfigs from '../components/TrainingConfigs/TrainingConfigs'
 import VendorManager from '../components/VendorManager/VendorManager'
 import KnowledgeBase from '../components/KnowledgeBase/KnowledgeBase'
+import AboutUpdates from '../components/AboutUpdates/AboutUpdates'
 
 export default function SettingsPage() {
   const [apiKey, setApiKey] = useState('')
@@ -177,6 +178,9 @@ export default function SettingsPage() {
 
           {/* Training configs */}
           <TrainingConfigs />
+
+          {/* About & Updates */}
+          <AboutUpdates />
 
           {saveError && (
             <div className="badge-critical w-full text-sm p-3 rounded-lg animate-fade-in">

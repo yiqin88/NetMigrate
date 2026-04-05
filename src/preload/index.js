@@ -101,11 +101,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // ── Auto-updater ──────────────────────────────────────────────────────────
   updater: {
+    check: () => ipcRenderer.invoke(IPC.UPDATE_CHECK),
     download: () => ipcRenderer.invoke(IPC.UPDATE_DOWNLOAD),
     install: () => ipcRenderer.invoke(IPC.UPDATE_INSTALL),
-    onUpdateAvailable: (cb) => ipcRenderer.on(IPC.UPDATE_AVAILABLE, (_, info) => cb(info)),
-    onUpdateDownloaded: (cb) => ipcRenderer.on(IPC.UPDATE_DOWNLOADED, (_, info) => cb(info)),
-    onProgress: (cb) => ipcRenderer.on(IPC.UPDATE_PROGRESS, (_, progress) => cb(progress)),
-    onError: (cb) => ipcRenderer.on(IPC.UPDATE_ERROR, (_, msg) => cb(msg)),
+    onUpdateAvailable: (cb) => {
+      const handler = (_, info) => cb(info)
+      ipcRenderer.on(IPC.UPDATE_AVAILABLE, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_AVAILABLE, handler)
+    },
+    onUpdateNotAvailable: (cb) => {
+      const handler = (_, info) => cb(info)
+      ipcRenderer.on(IPC.UPDATE_NOT_AVAILABLE, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_NOT_AVAILABLE, handler)
+    },
+    onUpdateDownloaded: (cb) => {
+      const handler = (_, info) => cb(info)
+      ipcRenderer.on(IPC.UPDATE_DOWNLOADED, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_DOWNLOADED, handler)
+    },
+    onProgress: (cb) => {
+      const handler = (_, progress) => cb(progress)
+      ipcRenderer.on(IPC.UPDATE_PROGRESS, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_PROGRESS, handler)
+    },
+    onError: (cb) => {
+      const handler = (_, msg) => cb(msg)
+      ipcRenderer.on(IPC.UPDATE_ERROR, handler)
+      return () => ipcRenderer.removeListener(IPC.UPDATE_ERROR, handler)
+    },
   },
 })
