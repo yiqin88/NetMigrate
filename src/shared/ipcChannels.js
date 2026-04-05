@@ -61,6 +61,8 @@ export const IPC = {
   CUSTOM_PRODUCTS_SAVE: 'custom:products-save',
   CUSTOM_PRODUCTS_UPDATE: 'custom:products-update',
   CUSTOM_PRODUCTS_DELETE: 'custom:products-delete',
+  DEVICE_TYPES_LIST: 'device-types:list',
+  DEVICE_TYPES_SAVE: 'device-types:save',
 
   // Knowledge Base
   KB_LIST: 'kb:list',

@@ -13,6 +13,7 @@ import {
   deleteTrainingExample, getTrainingExampleCounts, getTrainingExamplesForConversion,
   listCustomVendors, saveCustomVendor, deleteCustomVendor,
   listCustomProducts, saveCustomProduct, updateCustomProduct, deleteCustomProduct,
+  listDeviceTypes, saveDeviceType,
   validateInviteCode,
 } from './api/supabase'
 
@@ -318,6 +319,8 @@ ipcMain.handle(IPC.CUSTOM_PRODUCTS_LIST, async () => await listCustomProducts())
 ipcMain.handle(IPC.CUSTOM_PRODUCTS_SAVE, async (_, record) => await saveCustomProduct(record))
 ipcMain.handle(IPC.CUSTOM_PRODUCTS_UPDATE, async (_, { id, updates }) => await updateCustomProduct(id, updates))
 ipcMain.handle(IPC.CUSTOM_PRODUCTS_DELETE, async (_, id) => await deleteCustomProduct(id))
+ipcMain.handle(IPC.DEVICE_TYPES_LIST, async () => await listDeviceTypes())
+ipcMain.handle(IPC.DEVICE_TYPES_SAVE, async (_, record) => await saveDeviceType(record))
 
 // ── IPC: Knowledge Base ───────────────────────────────────────────────────────
 

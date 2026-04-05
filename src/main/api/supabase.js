@@ -36,20 +36,36 @@ export function resetClient() {
   _client = null
 }
 
-// Run on startup — ensure command_mappings column exists
+// Run on startup — ensure all required columns and tables exist
 export async function ensureSchema() {
   const client = getClient()
   if (!client) return
+
+  // Check command_mappings column
   try {
-    const { error } = await client
-      .from('training_examples')
-      .select('command_mappings')
-      .limit(1)
+    const { error } = await client.from('training_examples').select('command_mappings').limit(1)
     if (error && error.message.includes('command_mappings')) {
-      console.warn('[supabase] command_mappings column missing — add via Supabase dashboard:')
-      console.warn('  ALTER TABLE public.training_examples ADD COLUMN command_mappings jsonb;')
+      console.warn('[supabase] command_mappings column missing — run sql/create_device_types_table.sql')
+    }
+  } catch { /* ignore */ }
+
+  // Check device_type column on custom_products
+  try {
+    const { error } = await client.from('custom_products').select('device_type').limit(1)
+    if (error && error.message.includes('device_type')) {
+      console.warn('[supabase] device_type column missing on custom_products — run sql/create_device_types_table.sql')
     } else {
-      console.log('[supabase] Schema OK — command_mappings column exists')
+      console.log('[supabase] Schema OK — device_type column exists')
+    }
+  } catch { /* ignore */ }
+
+  // Check device_types table exists
+  try {
+    const { error } = await client.from('device_types').select('name').limit(1)
+    if (error) {
+      console.warn('[supabase] device_types table missing — run sql/create_device_types_table.sql')
+    } else {
+      console.log('[supabase] Schema OK — device_types table exists')
     }
   } catch { /* ignore */ }
 }
@@ -279,6 +295,28 @@ export async function deleteCustomProduct(id) {
   if (!client) throw new Error('Supabase not configured.')
   const { error } = await client.from('custom_products').delete().eq('id', id)
   if (error) throw new Error(`Delete product failed: ${error.message}`)
+}
+
+// ── Device types (Supabase sync) ─────────────────────────────────────────────
+
+export async function listDeviceTypes() {
+  const client = getClient()
+  if (!client) return []
+  const { data, error } = await client.from('device_types').select('*').order('label')
+  if (error) { console.error('[supabase] listDeviceTypes:', error.message); return [] }
+  return data ?? []
+}
+
+export async function saveDeviceType(record) {
+  const client = getClient()
+  if (!client) return null
+  const { data, error } = await client
+    .from('device_types')
+    .upsert(record, { onConflict: 'name' })
+    .select()
+    .single()
+  if (error) { console.error('[supabase] saveDeviceType:', error.message); return null }
+  return data
 }
 
 // ── Setup wizard ─────────────────────────────────────────────────────────────

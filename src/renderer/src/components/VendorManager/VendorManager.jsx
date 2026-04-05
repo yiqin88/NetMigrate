@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useVendors } from '../../hooks/useVendors'
 import { DEVICE_TYPES } from '../../constants/vendors'
 
@@ -163,19 +163,28 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
   const [role, setRole] = useState('both')
   const [deviceType, setDeviceType] = useState('switch')
   const [saving, setSaving] = useState(false)
+  const [customDeviceTypes, setCustomDeviceTypes] = useState([])
+
+  useEffect(() => {
+    window.electronAPI?.deviceTypes?.list().then((types) => {
+      if (types?.length) setCustomDeviceTypes(types)
+    }).catch(() => {})
+  }, [])
 
   const deviceTypeOptions = useMemo(() => {
     const builtIn = Object.keys(DEVICE_TYPES)
     const fromProducts = Object.values(allProducts)
       .map((p) => p.deviceType)
       .filter(Boolean)
-    return [...new Set([...builtIn, ...fromProducts])].sort()
-  }, [allProducts])
+    const fromDb = customDeviceTypes.map((t) => t.name)
+    return [...new Set([...builtIn, ...fromProducts, ...fromDb])].sort()
+  }, [allProducts, customDeviceTypes])
 
   async function handleSave() {
     if (!name.trim()) return
     setSaving(true)
     try {
+      const normalizedType = deviceType.trim().toLowerCase().replace(/\s+/g, '-') || 'switch'
       const productId = `${vendorId}_${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_')}`
       await window.electronAPI.customProducts.save({
         product_id: productId,
@@ -186,8 +195,13 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
         color,
         description: description.trim() || null,
         role,
-        device_type: deviceType.trim().toLowerCase().replace(/\s+/g, '-') || 'switch',
+        device_type: normalizedType,
       })
+      // Auto-save custom device types to Supabase so they sync to all users
+      if (!DEVICE_TYPES[normalizedType]) {
+        const label = deviceType.trim() || normalizedType
+        window.electronAPI?.deviceTypes?.save({ name: normalizedType, label }).catch(() => {})
+      }
       onSaved()
     } catch (err) {
       alert(err.message)

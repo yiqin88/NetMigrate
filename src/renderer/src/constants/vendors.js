@@ -7,6 +7,7 @@ export const DEVICE_TYPES = {
   router: { label: 'Router', icon: '🌐' },
   ap: { label: 'Access Point', icon: '📶' },
   controller: { label: 'Controller', icon: '🎛️' },
+  'load-balancer': { label: 'Load Balancer', icon: '⚖️' },
 }
 
 // ── Categories by device type combination ────────────────────────────────────

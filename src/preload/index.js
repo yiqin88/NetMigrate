@@ -80,6 +80,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     update: (id, updates) => ipcRenderer.invoke(IPC.CUSTOM_PRODUCTS_UPDATE, { id, updates }),
     delete: (id) => ipcRenderer.invoke(IPC.CUSTOM_PRODUCTS_DELETE, id),
   },
+  deviceTypes: {
+    list: () => ipcRenderer.invoke(IPC.DEVICE_TYPES_LIST),
+    save: (record) => ipcRenderer.invoke(IPC.DEVICE_TYPES_SAVE, record),
+  },
 
   // ── Knowledge Base ─────────────────────────────────────────────────────────
   kb: {
