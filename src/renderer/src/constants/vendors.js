@@ -230,14 +230,14 @@ export const TARGET_PRODUCTS = Object.values(PRODUCTS).filter((p) => p.role === 
 export const SOURCE_GROUPS = VENDOR_GROUPS
   .map((g) => ({
     ...g,
-    products: g.products.map((id) => PRODUCTS[id]).filter((p) => p.role === 'source' || p.role === 'both'),
+    products: g.products.map((id) => PRODUCTS[id]).filter(Boolean),
   }))
   .filter((g) => g.products.length > 0)
 
 export const TARGET_GROUPS = VENDOR_GROUPS
   .map((g) => ({
     ...g,
-    products: g.products.map((id) => PRODUCTS[id]).filter((p) => p.role === 'target' || p.role === 'both'),
+    products: g.products.map((id) => PRODUCTS[id]).filter(Boolean),
   }))
   .filter((g) => g.products.length > 0)
 
@@ -306,14 +306,14 @@ export function mergeCustomData(customVendors = [], customProducts = []) {
   const sourceGroups = allGroups
     .map((g) => ({
       ...g,
-      products: g.products.map((id) => allProducts[id]).filter((p) => p && (p.role === 'source' || p.role === 'both')),
+      products: g.products.map((id) => allProducts[id]).filter(Boolean),
     }))
     .filter((g) => g.products.length > 0)
 
   const targetGroups = allGroups
     .map((g) => ({
       ...g,
-      products: g.products.map((id) => allProducts[id]).filter((p) => p && (p.role === 'target' || p.role === 'both')),
+      products: g.products.map((id) => allProducts[id]).filter(Boolean),
     }))
     .filter((g) => g.products.length > 0)
 

@@ -1,4 +1,23 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
+import { stripTerminalOutput } from '../../services/configParser'
+
+// Hardware model → software platform ID mappings for auto-detection
+const HARDWARE_PLATFORM_MAP = [
+  { pattern: /catalyst\s*(3[68]50|9[2-5]\d{2})/i, productId: 'cisco_ios_xe' },
+  { pattern: /ios[- ]?xe/i, productId: 'cisco_ios_xe' },
+  { pattern: /catalyst\s*(29[46]0|37[56]0|35[67]0)/i, productId: 'cisco_ios' },
+  { pattern: /nexus/i, productId: 'cisco_nxos' },
+  { pattern: /nx[- ]?os/i, productId: 'cisco_nxos' },
+  { pattern: /ios[- ]?xr/i, productId: 'cisco_iosxr' },
+]
+
+function resolveDetectionId(detection) {
+  if (!detection?.product) return detection?.productId
+  for (const { pattern, productId } of HARDWARE_PLATFORM_MAP) {
+    if (pattern.test(detection.product)) return productId
+  }
+  return detection?.productId
+}
 
 export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
   const [config, setConfig] = useState('')
@@ -6,6 +25,7 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
   const [fileError, setFileError] = useState('')
   const [detection, setDetection] = useState(null) // { vendor, product, productId, confidence }
   const [detecting, setDetecting] = useState(false)
+  const [stripped, setStripped] = useState(false)
   const fileInputRef = useRef(null)
   const textareaRef = useRef(null)
   const detectTimerRef = useRef(null)
@@ -32,8 +52,17 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
     return () => { if (detectTimerRef.current) clearTimeout(detectTimerRef.current) }
   }, [config])
 
-  const detectionMatch = detection?.productId === vendorPair?.source?.id
-  const detectionMismatch = detection?.productId && !detectionMatch
+  const resolvedId = resolveDetectionId(detection)
+  const detectionMatch = resolvedId === vendorPair?.source?.id
+  const detectionMismatch = resolvedId && !detectionMatch
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  function applyConfig(raw) {
+    const result = stripTerminalOutput(raw)
+    setConfig(result.config)
+    setStripped(result.stripped)
+  }
 
   // ── File reading ────────────────────────────────────────────────────────────
 
@@ -44,7 +73,7 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
       return
     }
     const reader = new FileReader()
-    reader.onload = (e) => setConfig(e.target.result)
+    reader.onload = (e) => applyConfig(e.target.result)
     reader.onerror = () => setFileError('Failed to read file')
     reader.readAsText(file)
   }
@@ -83,7 +112,9 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
   // ── Paste handler (auto-detect config on paste) ────────────────────────────
 
   function handlePaste(e) {
-    // Let the textarea handle it; just clear any prior file error
+    e.preventDefault()
+    const text = e.clipboardData?.getData('text/plain') ?? ''
+    applyConfig(text)
     setFileError('')
   }
 
@@ -126,7 +157,7 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
             ${isDragging ? 'opacity-20 pointer-events-none' : ''}`}
           placeholder={`Paste ${vendorPair.source.fullName} configuration here…\n\nExample:\n!\nversion 16.9\n!\nvlan 10\n name Management\n!\ninterface GigabitEthernet1/0/1\n description Uplink\n switchport mode trunk\n!\nrouter ospf 1\n network 10.0.0.0 0.0.0.255 area 0\n!`}
           value={config}
-          onChange={(e) => { setConfig(e.target.value); setFileError('') }}
+          onChange={(e) => { setConfig(e.target.value); setFileError(''); setStripped(false) }}
           onPaste={handlePaste}
           spellCheck={false}
           autoComplete="off"
@@ -165,6 +196,9 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
           {fileError && (
             <span className="text-accent-red">{fileError}</span>
           )}
+          {stripped && (
+            <span className="text-accent-blue">Terminal output stripped — showing clean config only</span>
+          )}
           {detecting && (
             <span className="text-accent-blue animate-pulse-subtle">Detecting vendor…</span>
           )}
@@ -183,7 +217,7 @@ export default function ConfigInput({ vendorPair, onConfirm, onBack }) {
           <button
             type="button"
             className="btn-ghost text-text-muted hover:text-accent-red"
-            onClick={() => { setConfig(''); setFileError('') }}
+            onClick={() => { setConfig(''); setFileError(''); setStripped(false) }}
           >
             Clear
           </button>

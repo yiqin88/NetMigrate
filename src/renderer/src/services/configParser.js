@@ -48,6 +48,60 @@ export function cleanCiscoConfig(rawConfig) {
   return result
 }
 
+// Patterns that indicate terminal/PuTTY preamble before actual config
+const TERMINAL_PREAMBLE_INDICATORS = [
+  /PuTTY log/i,
+  /login\s*(as)?:/i,
+  /[Uu]sername\s*:/,
+  /[Pp]assword\s*:/,
+  /keyboard-interactive/i,
+  /show\s+run/i,
+  /Building configuration/i,
+  /[#>]\s*$/,                // CLI prompts like "Switch#"
+]
+
+/**
+ * Strip PuTTY log headers, terminal login/auth lines, show commands, and other
+ * preamble that precedes the actual configuration.
+ * Returns { config, stripped } where stripped=true if terminal output was removed.
+ * @param {string} rawText
+ * @returns {{ config: string, stripped: boolean }}
+ */
+export function stripTerminalOutput(rawText) {
+  const lines = rawText.split('\n')
+
+  // Find the start of actual config: 'version X.X' or '!' followed by config lines
+  let configStart = -1
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim()
+    if (/^version\s+\d/.test(trimmed)) {
+      configStart = i
+      break
+    }
+    if (trimmed === '!' && i + 1 < lines.length) {
+      const next = lines[i + 1].trim()
+      if (/^version\s+\d/.test(next) || /^hostname\s/.test(next) || next === '!') {
+        configStart = i
+        break
+      }
+    }
+  }
+
+  // Nothing to strip — config starts at beginning or not found
+  if (configStart <= 0) return { config: rawText, stripped: false }
+
+  // Only strip if the preamble actually contains terminal output indicators
+  const preamble = lines.slice(0, configStart).join('\n')
+  if (!TERMINAL_PREAMBLE_INDICATORS.some((re) => re.test(preamble))) {
+    return { config: rawText, stripped: false }
+  }
+
+  return {
+    config: lines.slice(configStart).join('\n').trimEnd(),
+    stripped: true,
+  }
+}
+
 /**
  * Parse a Cisco IOS / IOS-XE configuration string into structured elements.
  * @param {string} configText
