@@ -4,6 +4,11 @@ const { autoUpdater } = updaterPkg
 import { IPC } from '../shared/ipcChannels'
 import { setSetting } from './settings'
 
+// Inject build-time GitHub PAT so electron-updater can access private releases
+// eslint-disable-next-line no-undef
+const ghToken = typeof __GH_TOKEN__ === 'string' ? __GH_TOKEN__ : ''
+if (ghToken) process.env.GH_TOKEN = ghToken
+
 let mainWin = null
 let checkSource = 'silent' // 'silent' | 'menu' | 'renderer'
 let isChecking = false

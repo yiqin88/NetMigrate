@@ -17,6 +17,7 @@ export default defineConfig({
     define: {
       'process.env.VITE_SUPABASE_URL': JSON.stringify(process.env.VITE_SUPABASE_URL ?? ''),
       'process.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(process.env.VITE_SUPABASE_ANON_KEY ?? ''),
+      '__GH_TOKEN__': JSON.stringify(process.env.VITE_GH_TOKEN ?? ''),
     },
     build: {
       rollupOptions: {
