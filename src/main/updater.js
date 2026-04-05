@@ -1,14 +1,11 @@
-import { dialog } from 'electron'
+import { dialog, shell } from 'electron'
 import updaterPkg from 'electron-updater'
 const { autoUpdater } = updaterPkg
 import { IPC } from '../shared/ipcChannels'
 import { setSetting } from './settings'
 
-// Skip ASAR packing issues during update extraction
-process.env.ELECTRON_NO_ASAR = '1'
-
-// Skip code signature verification for unsigned builds
-autoUpdater.forceDevUpdateConfig = true
+const isMac = process.platform === 'darwin'
+const RELEASES_URL = 'https://github.com/yiqin88/NetMigrate/releases/latest'
 
 let mainWin = null
 let checkSource = 'silent' // 'silent' | 'menu' | 'renderer'
@@ -33,20 +30,33 @@ export function setupUpdater(window) {
     recordCheckTime()
     if (checkSource === 'menu') {
       checkSource = 'silent'
-      const { response } = await dialog.showMessageBox(mainWin, {
-        type: 'info',
-        title: 'Update Available',
-        message: `Version ${info.version} is available. Download now?`,
-        detail: typeof info.releaseNotes === 'string' ? info.releaseNotes : undefined,
-        buttons: ['Yes', 'No'],
-        defaultId: 0,
-        cancelId: 1,
-      })
-      if (response === 0) autoUpdater.downloadUpdate()
+      if (isMac) {
+        const { response } = await dialog.showMessageBox(mainWin, {
+          type: 'info',
+          title: 'Update Available',
+          message: `Version ${info.version} is available.`,
+          detail: 'macOS updates must be downloaded from GitHub.',
+          buttons: ['Download from GitHub', 'Later'],
+          defaultId: 0,
+          cancelId: 1,
+        })
+        if (response === 0) shell.openExternal(RELEASES_URL)
+      } else {
+        const { response } = await dialog.showMessageBox(mainWin, {
+          type: 'info',
+          title: 'Update Available',
+          message: `Version ${info.version} is available. Download now?`,
+          detail: typeof info.releaseNotes === 'string' ? info.releaseNotes : undefined,
+          buttons: ['Yes', 'No'],
+          defaultId: 0,
+          cancelId: 1,
+        })
+        if (response === 0) autoUpdater.downloadUpdate()
+      }
       return
     }
     checkSource = 'silent'
-    send(IPC.UPDATE_AVAILABLE, info)
+    send(IPC.UPDATE_AVAILABLE, { ...info, isMac })
   })
 
   autoUpdater.on('update-not-available', (info) => {

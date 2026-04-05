@@ -136,9 +136,15 @@ export default function AboutUpdates() {
                 : JSON.stringify(updateInfo.releaseNotes)}
             </div>
           )}
-          <button type="button" className="btn-primary text-xs" onClick={handleDownload}>
-            Download Update
-          </button>
+          {updateInfo.isMac ? (
+            <button type="button" className="btn-primary text-xs" onClick={() => window.open('https://github.com/yiqin88/NetMigrate/releases/latest')}>
+              Download from GitHub
+            </button>
+          ) : (
+            <button type="button" className="btn-primary text-xs" onClick={handleDownload}>
+              Download Update
+            </button>
+          )}
         </div>
       )}
 

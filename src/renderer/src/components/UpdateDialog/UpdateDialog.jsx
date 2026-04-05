@@ -43,7 +43,7 @@ export default function UpdateDialog() {
           </div>
         )}
 
-        {progress !== null && (
+        {!update.isMac && progress !== null && (
           <div>
             <div className="flex justify-between text-xs text-text-muted mb-1">
               <span>Downloading…</span>
@@ -65,7 +65,14 @@ export default function UpdateDialog() {
           >
             Later
           </button>
-          {downloaded ? (
+          {update.isMac ? (
+            <button
+              className="btn-primary"
+              onClick={() => { window.open('https://github.com/yiqin88/NetMigrate/releases/latest'); setDismissed(true) }}
+            >
+              Download from GitHub
+            </button>
+          ) : downloaded ? (
             <button
               className="btn-primary"
               onClick={() => window.electronAPI?.updater.install()}
