@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useVendors } from '../../hooks/useVendors'
 import { DEVICE_TYPES } from '../../constants/vendors'
 
@@ -156,12 +156,21 @@ function AddVendorForm({ onSaved, onCancel }) {
 }
 
 function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
+  const { allProducts } = useVendors()
   const [name, setName] = useState('')
   const [fullName, setFullName] = useState('')
   const [description, setDescription] = useState('')
   const [role, setRole] = useState('both')
   const [deviceType, setDeviceType] = useState('switch')
   const [saving, setSaving] = useState(false)
+
+  const deviceTypeOptions = useMemo(() => {
+    const builtIn = Object.keys(DEVICE_TYPES)
+    const fromProducts = Object.values(allProducts)
+      .map((p) => p.deviceType)
+      .filter(Boolean)
+    return [...new Set([...builtIn, ...fromProducts])].sort()
+  }, [allProducts])
 
   async function handleSave() {
     if (!name.trim()) return
@@ -177,7 +186,7 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
         color,
         description: description.trim() || null,
         role,
-        device_type: deviceType,
+        device_type: deviceType.trim().toLowerCase().replace(/\s+/g, '-') || 'switch',
       })
       onSaved()
     } catch (err) {
@@ -199,11 +208,20 @@ function AddProductForm({ vendorId, vendorName, color, onSaved, onCancel }) {
           <option value="target">Target</option>
           <option value="both">Both</option>
         </select>
-        <select className="input text-xs w-28" value={deviceType} onChange={(e) => setDeviceType(e.target.value)}>
-          {Object.entries(DEVICE_TYPES).map(([k, v]) => (
-            <option key={k} value={k}>{v.icon} {v.label}</option>
+        <input
+          list="device-type-options"
+          className="input text-xs w-28"
+          placeholder="Device type"
+          value={deviceType}
+          onChange={(e) => setDeviceType(e.target.value)}
+        />
+        <datalist id="device-type-options">
+          {deviceTypeOptions.map((dt) => (
+            <option key={dt} value={dt}>
+              {DEVICE_TYPES[dt] ? `${DEVICE_TYPES[dt].icon} ${DEVICE_TYPES[dt].label}` : dt}
+            </option>
           ))}
-        </select>
+        </datalist>
       </div>
       <div className="flex gap-1.5 justify-end">
         <button className="btn-ghost text-[10px]" onClick={onCancel}>Cancel</button>

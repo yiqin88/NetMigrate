@@ -5,6 +5,8 @@ export const DEVICE_TYPES = {
   firewall: { label: 'Firewall', icon: '🔒' },
   'wireless-controller': { label: 'Wireless', icon: '📡' },
   router: { label: 'Router', icon: '🌐' },
+  ap: { label: 'Access Point', icon: '📶' },
+  controller: { label: 'Controller', icon: '🎛️' },
 }
 
 // ── Categories by device type combination ────────────────────────────────────
