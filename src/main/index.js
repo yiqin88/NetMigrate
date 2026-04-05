@@ -100,6 +100,14 @@ app.whenReady().then(() => {
       label: 'Help',
       submenu: [
         {
+          label: 'Toggle Developer Tools',
+          accelerator: process.platform === 'darwin' ? 'Cmd+Option+I' : 'F12',
+          click: () => {
+            mainWindow?.webContents.toggleDevTools()
+          }
+        },
+        { type: 'separator' },
+        {
           label: 'Check for Updates...',
           click: () => {
             if (is.dev) {
